@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "7237385895",
+    "project_id": "gameset-c135b",
+    "storage_bucket": "gameset-c135b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:7237385895:android:025a19cc119782d1556582",
+        "android_client_info": {
+          "package_name": "com.example.game_set"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3sfkQgnFmGX_okbN45DJR8GvvfaWCLDA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

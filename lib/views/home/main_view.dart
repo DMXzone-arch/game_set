@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'home_view.dart';
-import 'games_view.dart';
 import 'settings_view.dart';
 
 class MainView extends StatefulWidget {
@@ -16,11 +15,7 @@ class MainView extends StatefulWidget {
 class _MainViewState extends State<MainView> {
   int selectedIndex = 0;
 
-  final List<Widget> pages = const [
-    HomeView(),
-    GamesView(),
-    SettingsView(),
-  ];
+  final List<Widget> pages = const [HomeView(), SettingsView()];
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +34,7 @@ class _MainViewState extends State<MainView> {
 
           return FadeTransition(
             opacity: animation,
-            child: SlideTransition(
-              position: slideAnimation,
-              child: child,
-            ),
+            child: SlideTransition(position: slideAnimation, child: child),
           );
         },
         child: KeyedSubtree(
@@ -56,27 +48,17 @@ class _MainViewState extends State<MainView> {
 
   Widget _buildNavigationBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        12,
-        0,
-        12,
-        12,
-      ),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 20,
-            sigmaY: 20,
-          ),
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             height: 70,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.10),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
             ),
             child: Row(
               children: [
@@ -91,14 +73,6 @@ class _MainViewState extends State<MainView> {
                 Expanded(
                   child: _buildNavigationItem(
                     index: 1,
-                    icon: Icons.sports_esports_outlined,
-                    selectedIcon: Icons.sports_esports,
-                    label: 'Games',
-                  ),
-                ),
-                Expanded(
-                  child: _buildNavigationItem(
-                    index: 2,
                     icon: Icons.settings_outlined,
                     selectedIcon: Icons.settings,
                     label: 'Settings',
@@ -135,10 +109,7 @@ class _MainViewState extends State<MainView> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 8,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? const Color(0xFF1565C0).withValues(alpha: 0.25)
@@ -155,9 +126,7 @@ class _MainViewState extends State<MainView> {
                 child: Icon(
                   isSelected ? selectedIcon : icon,
                   size: 23,
-                  color: isSelected
-                      ? const Color(0xFF2196F3)
-                      : Colors.white70,
+                  color: isSelected ? const Color(0xFF2196F3) : Colors.white70,
                 ),
               ),
 
