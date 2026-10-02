@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /games/{gameId} {
+      allow read: if isAdmin() || resource.data.isPublished == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /game_images/{gameId} {
+      allow read: if isAdmin()
+        || get(/databases/$(database)/documents/games/$(gameId)).data.isPublished == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /downloads/{gameId} {
+      allow get: if isAdmin()
+        || get(/databases/$(database)/documents/games/$(gameId)).data.isPublished == true;
+      allow list: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == 1
+        && get(/databases/$(database)/documents/games/$(gameId)).data.isPublished == true;
+      allow update: if request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == resource.data.count + 1
+        && get(/databases/$(database)/documents/games/$(gameId)).data.isPublished == true;
+      allow delete: if isAdmin();
+    }
+  }
+}

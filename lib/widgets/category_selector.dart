@@ -27,39 +27,32 @@ class CategorySelector extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedCategory,
-              isExpanded: true,
-              dropdownColor: const Color(0xFF182236),
-              icon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Colors.white,
-              ),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-              items: categories.map((category) {
-                return DropdownMenuItem(
-                  value: category,
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.grid_view_rounded,
-                        size: 20,
-                        color: Color(0xFF2196F3),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(category),
-                    ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: categories.map((category) {
+                final bool selected = category == selectedCategory;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(category),
+                    selected: selected,
+                    showCheckmark: false,
+                    onSelected: (_) => onChanged(category),
+                    selectedColor: const Color(0xFF2196F3),
+                    backgroundColor: Colors.white.withValues(alpha: 0.08),
+                    side: BorderSide(
+                      color: selected
+                          ? const Color(0xFF2196F3)
+                          : Colors.white.withValues(alpha: 0.16),
+                    ),
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 );
               }).toList(),
-              onChanged: (category) {
-                if (category != null) onChanged(category);
-              },
             ),
           ),
         ),

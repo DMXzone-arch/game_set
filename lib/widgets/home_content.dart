@@ -9,22 +9,28 @@ class HomeContent extends StatelessWidget {
   const HomeContent({
     super.key,
     required this.games,
+    required this.mostDownloadedGames,
     required this.isLoading,
     required this.hasError,
+    this.errorMessage,
     required this.searchQuery,
     required this.onRetry,
   });
 
   final List<Game> games;
+  final List<Game> mostDownloadedGames;
   final bool isLoading;
   final bool hasError;
+  final String? errorMessage;
   final String searchQuery;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) return const _LoadingContent();
-    if (hasError) return _ErrorContent(onRetry: onRetry);
+    if (hasError) {
+      return _ErrorContent(onRetry: onRetry, message: errorMessage);
+    }
 
     final searching = searchQuery.trim().isNotEmpty;
     return Column(
@@ -57,8 +63,10 @@ class HomeContent extends StatelessWidget {
         _GameSection(
           title: 'Most Downloaded',
           icon: Icons.local_fire_department_rounded,
-          games: games,
-          emptyMessage: searching ? 'No games found' : 'No downloads yet',
+          games: mostDownloadedGames,
+          emptyMessage: searching
+              ? 'No downloaded games found'
+              : 'No downloads yet',
           emptyDescription: searching
               ? 'Try a different game name.'
               : 'Popular games will appear here.',
@@ -326,9 +334,10 @@ class _LoadingCard extends StatelessWidget {
 }
 
 class _ErrorContent extends StatelessWidget {
-  const _ErrorContent({required this.onRetry});
+  const _ErrorContent({required this.onRetry, this.message});
 
   final VoidCallback onRetry;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -361,7 +370,8 @@ class _ErrorContent extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'We couldn\'t load the games right now.\nPlease check your connection and try again.',
+                message ??
+                    'We couldn\'t load the games right now.\nPlease check your connection and try again.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.60),

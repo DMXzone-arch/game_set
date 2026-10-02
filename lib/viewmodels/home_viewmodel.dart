@@ -17,16 +17,26 @@ class HomeViewModel extends ChangeNotifier {
 
   bool get hasError => _gameViewModel.hasError;
 
+  String? get errorMessage => _gameViewModel.errorMessage;
+
   List<String> get categories => _gameViewModel.categories;
 
   List<Game> get filteredGames {
-    final String query =
-        submittedSearchQuery.toLowerCase().trim();
+    return _filterGames(_gameViewModel.games);
+  }
 
-    return _gameViewModel
-        .getGamesByCategory(selectedCategory)
+  List<Game> get filteredMostDownloadedGames {
+    return _filterGames(_gameViewModel.mostDownloadedGames);
+  }
+
+  List<Game> _filterGames(List<Game> games) {
+    final String query = submittedSearchQuery.toLowerCase().trim();
+
+    return games
         .where(
           (game) =>
+              (selectedCategory == 'All' ||
+                  game.category == selectedCategory) &&
               game.name.toLowerCase().contains(query),
         )
         .toList();
@@ -58,9 +68,7 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _gameViewModel.removeListener(
-      _onGameViewModelChanged,
-    );
+    _gameViewModel.removeListener(_onGameViewModelChanged);
 
     _gameViewModel.dispose();
 

@@ -18,35 +18,14 @@ class ScreenshotViewer extends StatelessWidget {
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
-        barrierColor: Colors.black.withValues(
-          alpha: 0.92,
-        ),
-        transitionDuration: const Duration(
-          milliseconds: 300,
-        ),
-        reverseTransitionDuration: const Duration(
-          milliseconds: 250,
-        ),
-        pageBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-        ) {
-          return _FullscreenScreenshot(
-            imagePath: imagePath,
-            heroTag: heroTag,
-          );
+        barrierColor: Colors.black.withValues(alpha: 0.92),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 250),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _FullscreenScreenshot(imagePath: imagePath, heroTag: heroTag);
         },
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
         },
       ),
     );
@@ -57,9 +36,7 @@ class ScreenshotViewer extends StatelessWidget {
     final bool hasImage = imagePath.trim().isNotEmpty;
 
     return GestureDetector(
-      onTap: hasImage
-          ? () => _openViewer(context)
-          : null,
+      onTap: hasImage ? () => _openViewer(context) : null,
       child: Hero(
         tag: heroTag,
         child: AspectRatio(
@@ -67,16 +44,11 @@ class ScreenshotViewer extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: hasImage
-                ? Image.asset(
+                ? _buildScreenshotImage(
                     imagePath,
                     fit: BoxFit.cover,
-                    errorBuilder: (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
-                      return _buildErrorWidget();
-                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildErrorWidget(),
                   )
                 : _buildErrorWidget(),
           ),
@@ -87,9 +59,7 @@ class ScreenshotViewer extends StatelessWidget {
 
   Widget _buildErrorWidget() {
     return Container(
-      color: Colors.white.withValues(
-        alpha: 0.06,
-      ),
+      color: Colors.white.withValues(alpha: 0.06),
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -101,10 +71,7 @@ class ScreenshotViewer extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'Screenshot unavailable',
-            style: TextStyle(
-              color: Colors.white38,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.white38, fontSize: 11),
           ),
         ],
       ),
@@ -116,10 +83,7 @@ class _FullscreenScreenshot extends StatelessWidget {
   final String imagePath;
   final String heroTag;
 
-  const _FullscreenScreenshot({
-    required this.imagePath,
-    required this.heroTag,
-  });
+  const _FullscreenScreenshot({required this.imagePath, required this.heroTag});
 
   @override
   Widget build(BuildContext context) {
@@ -134,29 +98,22 @@ class _FullscreenScreenshot extends StatelessWidget {
                 child: InteractiveViewer(
                   minScale: 1.0,
                   maxScale: 4.0,
-                  child: Image.asset(
+                  child: _buildScreenshotImage(
                     imagePath,
                     fit: BoxFit.contain,
-                    errorBuilder: (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
+                    errorBuilder: (context, error, stackTrace) {
                       return const Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons
-                                .image_not_supported_outlined,
+                            Icons.image_not_supported_outlined,
                             color: Colors.white54,
                             size: 60,
                           ),
                           SizedBox(height: 12),
                           Text(
                             'Screenshot unavailable',
-                            style: TextStyle(
-                              color: Colors.white54,
-                            ),
+                            style: TextStyle(color: Colors.white54),
                           ),
                         ],
                       );
@@ -171,19 +128,14 @@ class _FullscreenScreenshot extends StatelessWidget {
               right: 12,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(
-                    alpha: 0.50,
-                  ),
+                  color: Colors.black.withValues(alpha: 0.50),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                  ),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
                 ),
               ),
             ),
@@ -192,4 +144,15 @@ class _FullscreenScreenshot extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildScreenshotImage(
+  String imagePath, {
+  required BoxFit fit,
+  required ImageErrorWidgetBuilder errorBuilder,
+}) {
+  if (imagePath.startsWith('https://') || imagePath.startsWith('http://')) {
+    return Image.network(imagePath, fit: fit, errorBuilder: errorBuilder);
+  }
+  return Image.asset(imagePath, fit: fit, errorBuilder: errorBuilder);
 }

@@ -14,12 +14,10 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView>
-    with TickerProviderStateMixin {
+class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   final HomeViewModel viewModel = HomeViewModel();
 
-  final TextEditingController searchController =
-      TextEditingController();
+  final TextEditingController searchController = TextEditingController();
 
   final FocusNode searchFocusNode = FocusNode();
 
@@ -45,79 +43,44 @@ class _HomeViewState extends State<HomeView>
 
     _headerFade = CurvedAnimation(
       parent: _homeAnimationController,
-      curve: const Interval(
-        0.0,
-        0.30,
-        curve: Curves.easeOut,
-      ),
+      curve: const Interval(0.0, 0.30, curve: Curves.easeOut),
     );
 
     _headerSlide = _slide(
       const Offset(0, -0.08),
-      const Interval(
-        0.0,
-        0.35,
-        curve: Curves.easeOutCubic,
-      ),
+      const Interval(0.0, 0.35, curve: Curves.easeOutCubic),
     );
 
     _searchFade = CurvedAnimation(
       parent: _homeAnimationController,
-      curve: const Interval(
-        0.18,
-        0.50,
-        curve: Curves.easeOut,
-      ),
+      curve: const Interval(0.18, 0.50, curve: Curves.easeOut),
     );
 
-    _searchScale = Tween<double>(
-      begin: 0.94,
-      end: 1.0,
-    ).animate(
+    _searchScale = Tween<double>(begin: 0.94, end: 1.0).animate(
       CurvedAnimation(
         parent: _homeAnimationController,
-        curve: const Interval(
-          0.18,
-          0.50,
-          curve: Curves.easeOutBack,
-        ),
+        curve: const Interval(0.18, 0.50, curve: Curves.easeOutBack),
       ),
     );
 
     _categoryFade = CurvedAnimation(
       parent: _homeAnimationController,
-      curve: const Interval(
-        0.32,
-        0.65,
-        curve: Curves.easeOut,
-      ),
+      curve: const Interval(0.32, 0.65, curve: Curves.easeOut),
     );
 
     _categorySlide = _slide(
       const Offset(0, 0.08),
-      const Interval(
-        0.32,
-        0.65,
-        curve: Curves.easeOutCubic,
-      ),
+      const Interval(0.32, 0.65, curve: Curves.easeOutCubic),
     );
 
     _loadGames();
   }
 
-  Animation<Offset> _slide(
-    Offset begin,
-    Curve curve,
-  ) {
+  Animation<Offset> _slide(Offset begin, Curve curve) {
     return Tween<Offset>(
       begin: begin,
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _homeAnimationController,
-        curve: curve,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _homeAnimationController, curve: curve));
   }
 
   Future<void> _loadGames() async {
@@ -173,84 +136,84 @@ class _HomeViewState extends State<HomeView>
           const HomeBackground(),
 
           SafeArea(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                16,
-                16,
-                110,
-              ),
-              child: AnimatedBuilder(
-                animation: viewModel,
-                builder: (context, _) {
-                  return Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      SlideTransition(
-                        position: _headerSlide,
-                        child: FadeTransition(
-                          opacity: _headerFade,
-                          child: const HomeHeader(),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      FadeTransition(
-                        opacity: _searchFade,
-                        child: ScaleTransition(
-                          scale: _searchScale,
-                          child: GameSearchBar(
-                            controller: searchController,
-                            focusNode: searchFocusNode,
-                            onSubmitted: _submitSearch,
-                            onClear: _clearSearch,
+            child: RefreshIndicator(
+              onRefresh: _loadGames,
+              color: const Color(0xFF64B5F6),
+              backgroundColor: const Color(0xFF182236),
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+                child: AnimatedBuilder(
+                  animation: viewModel,
+                  builder: (context, _) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SlideTransition(
+                          position: _headerSlide,
+                          child: FadeTransition(
+                            opacity: _headerFade,
+                            child: const HomeHeader(),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 28),
+                        const SizedBox(height: 20),
 
-                      SlideTransition(
-                        position: _categorySlide,
-                        child: FadeTransition(
-                          opacity: _categoryFade,
-                          child: CategorySelector(
-                            categories: viewModel.categories,
-                            selectedCategory:
-                                viewModel.selectedCategory,
-                            onChanged: _selectCategory,
+                        FadeTransition(
+                          opacity: _searchFade,
+                          child: ScaleTransition(
+                            scale: _searchScale,
+                            child: GameSearchBar(
+                              controller: searchController,
+                              focusNode: searchFocusNode,
+                              onSubmitted: _submitSearch,
+                              onClear: _clearSearch,
+                            ),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 32),
+                        const SizedBox(height: 28),
 
-                      AnimatedSwitcher(
-                        duration: const Duration(
-                          milliseconds: 500,
-                        ),
-                        child: HomeContent(
-                          key: ValueKey(
-                            '${viewModel.selectedCategory}_'
-                            '${viewModel.submittedSearchQuery}_'
-                            '${viewModel.filteredGames.map((game) => game.id).join('_')}',
+                        SlideTransition(
+                          position: _categorySlide,
+                          child: FadeTransition(
+                            opacity: _categoryFade,
+                            child: CategorySelector(
+                              categories: viewModel.categories,
+                              selectedCategory: viewModel.selectedCategory,
+                              onChanged: _selectCategory,
+                            ),
                           ),
-                          games: viewModel.filteredGames,
-                          isLoading: viewModel.isLoading,
-                          hasError: viewModel.hasError,
-                          searchQuery:
-                              viewModel.submittedSearchQuery,
-                          onRetry: _loadGames,
                         ),
-                      ),
-                    ],
-                  );
-                },
+
+                        const SizedBox(height: 32),
+
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 500),
+                          child: HomeContent(
+                            key: ValueKey(
+                              '${viewModel.selectedCategory}_'
+                              '${viewModel.submittedSearchQuery}_'
+                              '${viewModel.filteredGames.map((game) => game.id).join('_')}',
+                            ),
+                            games: viewModel.filteredGames,
+                            mostDownloadedGames:
+                                viewModel.filteredMostDownloadedGames,
+                            isLoading: viewModel.isLoading,
+                            hasError: viewModel.hasError,
+                            errorMessage: viewModel.errorMessage,
+                            searchQuery: viewModel.submittedSearchQuery,
+                            onRetry: _loadGames,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),

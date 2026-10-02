@@ -1,16 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/game.dart';
+import '../services/game_repository.dart';
 import '../views/home/game_details_view.dart';
 
 class GameCard extends StatefulWidget {
   final Game game;
 
-  const GameCard({
-    super.key,
-    required this.game,
-  });
+  const GameCard({super.key, required this.game});
 
   @override
   State<GameCard> createState() => _GameCardState();
@@ -23,13 +23,13 @@ class _GameCardState extends State<GameCard> {
   Future<void> _downloadGame() async {
     final Uri? url = Uri.tryParse(widget.game.downloadLink);
 
-    if (url == null ||
-        (url.scheme != 'http' && url.scheme != 'https')) {
+    if (url == null || (url.scheme != 'http' && url.scheme != 'https')) {
       _showMessage('This game does not have a valid download link.');
       return;
     }
 
     setState(() => isDownloading = true);
+    _recordDownloadTap();
 
     try {
       final bool launched = await launchUrl(
@@ -49,6 +49,15 @@ class _GameCardState extends State<GameCard> {
         setState(() => isDownloading = false);
       }
     }
+  }
+
+  void _recordDownloadTap() {
+    if (widget.game.id.isEmpty) return;
+    unawaited(
+      GameRepository()
+          .incrementDownloadCount(widget.game.id)
+          .catchError((Object _) {}),
+    );
   }
 
   void _showMessage(String message) {
@@ -75,9 +84,7 @@ class _GameCardState extends State<GameCard> {
         clipBehavior: Clip.antiAlias,
         elevation: 3,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -90,32 +97,13 @@ class _GameCardState extends State<GameCard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => GameDetailsView(
-                      game: widget.game,
-                    ),
+                    builder: (_) => GameDetailsView(game: widget.game),
                   ),
                 );
               },
               child: AspectRatio(
                 aspectRatio: 1.3,
-                child: Image.asset(
-                  widget.game.icon,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      child: const Center(
-                        child: Icon(
-                          Icons.gamepad,
-                          size: 36,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildGameIcon(context),
               ),
             ),
 
@@ -145,8 +133,9 @@ class _GameCardState extends State<GameCard> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2196F3)
-                                .withValues(alpha: 0.10),
+                            color: const Color(
+                              0xFF2196F3,
+                            ).withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -176,6 +165,35 @@ class _GameCardState extends State<GameCard> {
     );
   }
 
+  Widget _buildGameIcon(BuildContext context) {
+    final String imagePath = widget.game.icon.trim();
+    final Widget fallback = Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: const Center(child: Icon(Icons.gamepad, size: 36)),
+    );
+    Widget buildError(
+      BuildContext context,
+      Object error,
+      StackTrace? stackTrace,
+    ) => fallback;
+
+    if (imagePath.startsWith('https://') || imagePath.startsWith('http://')) {
+      return Image.network(
+        imagePath,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: buildError,
+      );
+    }
+    if (imagePath.isEmpty) return fallback;
+    return Image.asset(
+      imagePath,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: buildError,
+    );
+  }
+
   Widget _buildDownloadButton() {
     return SizedBox(
       height: 28,
@@ -184,14 +202,13 @@ class _GameCardState extends State<GameCard> {
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFF1565C0),
           foregroundColor: Colors.white,
-          disabledBackgroundColor:
-              const Color(0xFF1565C0).withValues(alpha: 0.55),
+          disabledBackgroundColor: const Color(
+            0xFF1565C0,
+          ).withValues(alpha: 0.55),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           minimumSize: const Size(0, 28),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: isDownloading
             ? const SizedBox(
@@ -205,17 +222,11 @@ class _GameCardState extends State<GameCard> {
             : const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.download_rounded,
-                    size: 14,
-                  ),
+                  Icon(Icons.download_rounded, size: 14),
                   SizedBox(width: 3),
                   Text(
                     'Download',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),

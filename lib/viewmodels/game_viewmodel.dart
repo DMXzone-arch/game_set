@@ -1,75 +1,73 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/firebase_status.dart';
 import '../models/game.dart';
+import '../services/game_repository.dart';
 
 class GameViewModel extends ChangeNotifier {
+  GameViewModel({GameRepository? repository})
+    : _repository = repository ?? GameRepository();
+
+  final GameRepository _repository;
+
   bool _isLoading = false;
   bool _hasError = false;
+  String? _errorMessage;
 
   List<Game> _games = [];
+  List<Game> _mostDownloadedGames = [];
 
-  final List<String> _categories = [
-    'All',
-    'Action',
-    'Adventure',
-    'Fighting',
-    'Racing',
-    'Sports',
-    'RPG',
-    'Strategy',
-  ];
+  List<String> _categories = ['All'];
 
   bool get isLoading => _isLoading;
 
   bool get hasError => _hasError;
 
+  String? get errorMessage => _errorMessage;
+
   List<Game> get games => List.unmodifiable(_games);
+
+  List<Game> get mostDownloadedGames => List.unmodifiable(_mostDownloadedGames);
 
   List<String> get categories => List.unmodifiable(_categories);
 
   Future<void> loadGames() async {
     _isLoading = true;
     _hasError = false;
+    _errorMessage = null;
+    _mostDownloadedGames = [];
 
     notifyListeners();
 
     try {
-      await Future.delayed(
-        const Duration(milliseconds: 700),
-      );
+      final List<Game> games = await _repository.fetchGames();
+      final List<String> categories = await _repository.fetchCategories();
+      Map<String, int> downloadCounts = {};
+      try {
+        downloadCounts = await _repository.fetchDownloadCounts(
+          games.map((game) => game.id).toList(),
+        );
+      } catch (_) {}
 
-      _games = [
-        Game(
-          id: '1',
-          name: 'FIFA 23',
-          category: 'Sports',
-          icon: 'assets/images/fifa23.jpg',
-          screenshot1: 'assets/images/fifa23_1.jpg',
-          screenshot2: 'assets/images/fifa23_2.jpg',
-          description:
-              'Football game with realistic gameplay.',
-          version: '1.0',
-          size: '50 GB',
-          downloadLink: 'https://example.com',
-        ),
-        Game(
-          id: '2',
-          name: 'Tekken 7',
-          category: 'Fighting',
-          icon: 'assets/images/tekken7.jpeg',
-          screenshot1: 'assets/images/tekken7_1.jpg',
-          screenshot2: 'assets/images/tekken7_2.jpg',
-          description:
-              'A popular fighting game.',
-          version: '1.0',
-          size: '45 GB',
-          downloadLink: 'https://example.com',
-        ),
+      final List<Game> mostDownloadedGames =
+          games.where((game) => (downloadCounts[game.id] ?? 0) > 0).toList()
+            ..sort(
+              (first, second) => (downloadCounts[second.id] ?? 0).compareTo(
+                downloadCounts[first.id] ?? 0,
+              ),
+            );
+
+      _games = games;
+      _mostDownloadedGames = mostDownloadedGames;
+      _categories = [
+        'All',
+        ...categories.where((category) => category != 'All'),
       ];
 
       _hasError = false;
-    } catch (_) {
+    } catch (error) {
       _hasError = true;
+      _errorMessage = FirebaseStatus.initializationError ?? error.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -81,8 +79,6 @@ class GameViewModel extends ChangeNotifier {
       return List<Game>.from(_games);
     }
 
-    return _games.where(
-      (game) => game.category == category,
-    ).toList();
+    return _games.where((game) => game.category == category).toList();
   }
 }

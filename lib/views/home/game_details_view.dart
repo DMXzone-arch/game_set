@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/game.dart';
+import '../../services/game_repository.dart';
 import '../../widgets/game_details/game_description.dart';
 import '../../widgets/game_details/game_details_header.dart';
 import '../../widgets/game_details/game_info_card.dart';
@@ -12,10 +15,7 @@ import '../../widgets/game_details/screenshot_viewer.dart';
 class GameDetailsView extends StatefulWidget {
   final Game game;
 
-  const GameDetailsView({
-    super.key,
-    required this.game,
-  });
+  const GameDetailsView({super.key, required this.game});
 
   @override
   State<GameDetailsView> createState() => _GameDetailsViewState();
@@ -37,54 +37,32 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        milliseconds: 900,
-      ),
+      duration: const Duration(milliseconds: 900),
     );
 
     _headerAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(
-        0.0,
-        0.45,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
     );
 
     _infoAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(
-        0.15,
-        0.60,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0.15, 0.60, curve: Curves.easeOutCubic),
     );
 
     _descriptionAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(
-        0.25,
-        0.70,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0.25, 0.70, curve: Curves.easeOutCubic),
     );
 
     _screenshotsAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(
-        0.35,
-        0.85,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0.35, 0.85, curve: Curves.easeOutCubic),
     );
 
     _downloadAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(
-        0.50,
-        1.0,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0.50, 1.0, curve: Curves.easeOutCubic),
     );
 
     _animationController.forward();
@@ -97,18 +75,19 @@ class _GameDetailsViewState extends State<GameDetailsView>
   }
 
   Future<void> _downloadGame(BuildContext context) async {
-    final Uri? url = Uri.tryParse(
-      widget.game.downloadLink,
-    );
+    final Uri? url = Uri.tryParse(widget.game.downloadLink);
 
-    if (url == null ||
-        (url.scheme != 'http' &&
-            url.scheme != 'https')) {
-      _showMessage(
-        context,
-        'This game does not have a valid download link.',
-      );
+    if (url == null || (url.scheme != 'http' && url.scheme != 'https')) {
+      _showMessage(context, 'This game does not have a valid download link.');
       return;
+    }
+
+    if (widget.game.id.isNotEmpty) {
+      unawaited(
+        GameRepository()
+            .incrementDownloadCount(widget.game.id)
+            .catchError((Object _) {}),
+      );
     }
 
     try {
@@ -118,10 +97,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
       );
 
       if (!launched && context.mounted) {
-        _showMessage(
-          context,
-          'Could not open the download website.',
-        );
+        _showMessage(context, 'Could not open the download website.');
       }
     } catch (_) {
       if (context.mounted) {
@@ -133,10 +109,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
     }
   }
 
-  void _showMessage(
-    BuildContext context,
-    String message,
-  ) {
+  void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -166,74 +139,59 @@ class _GameDetailsViewState extends State<GameDetailsView>
                 _buildAppBar(context),
 
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    18,
-                    24,
-                    18,
-                    40,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 40),
                   sliver: SliverList(
-                    delegate: SliverChildListDelegate(
-                      [
-                        _AnimatedSection(
-                          animation: _headerAnimation,
-                          child: GameDetailsHeader(
-                            game: widget.game,
-                          ),
+                    delegate: SliverChildListDelegate([
+                      _AnimatedSection(
+                        animation: _headerAnimation,
+                        child: GameDetailsHeader(game: widget.game),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      _AnimatedSection(
+                        animation: _infoAnimation,
+                        child: GameInfoCard(game: widget.game),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      _AnimatedSection(
+                        animation: _descriptionAnimation,
+                        child: GameDescription(game: widget.game),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      _AnimatedSection(
+                        animation: _screenshotsAnimation,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionTitle(
+                              icon: Icons.photo_library_outlined,
+                              title: 'Screenshots',
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            _buildScreenshots(),
+                          ],
                         ),
+                      ),
 
-                        const SizedBox(height: 30),
+                      const SizedBox(height: 30),
 
-                        _AnimatedSection(
-                          animation: _infoAnimation,
-                          child: GameInfoCard(
-                            game: widget.game,
-                          ),
+                      _AnimatedSection(
+                        animation: _downloadAnimation,
+                        child: Column(
+                          children: [
+                            _buildDownloadButton(context),
+                            _buildDownloadHint(),
+                          ],
                         ),
-
-                        const SizedBox(height: 18),
-
-                        _AnimatedSection(
-                          animation: _descriptionAnimation,
-                          child: GameDescription(
-                            game: widget.game,
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        _AnimatedSection(
-                          animation: _screenshotsAnimation,
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle(
-                                icon: Icons
-                                    .photo_library_outlined,
-                                title: 'Screenshots',
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              _buildScreenshots(),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        _AnimatedSection(
-                          animation: _downloadAnimation,
-                          child: Column(
-                            children: [
-                              _buildDownloadButton(context),
-                              _buildDownloadHint(),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ]),
                   ),
                 ),
               ],
@@ -249,19 +207,12 @@ class _GameDetailsViewState extends State<GameDetailsView>
       pinned: true,
       expandedHeight: 70,
       collapsedHeight: 70,
-      backgroundColor:
-          const Color(0xFF071426).withValues(
-        alpha: 0.72,
-      ),
+      backgroundColor: const Color(0xFF071426).withValues(alpha: 0.72),
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: Padding(
-        padding: const EdgeInsets.only(
-          left: 10,
-          top: 8,
-          bottom: 8,
-        ),
+        padding: const EdgeInsets.only(left: 10, top: 8, bottom: 8),
         child: _GlassCircleButton(
           icon: Icons.arrow_back_rounded,
           onPressed: () {
@@ -282,26 +233,17 @@ class _GameDetailsViewState extends State<GameDetailsView>
     );
   }
 
-  Widget _buildSectionTitle({
-    required IconData icon,
-    required String title,
-  }) {
+  Widget _buildSectionTitle({required IconData icon, required String title}) {
     return Row(
       children: [
         Container(
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: const Color(0xFF2196F3).withValues(
-              alpha: 0.12,
-            ),
+            color: const Color(0xFF2196F3).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            color: const Color(0xFF64B5F6),
-            size: 19,
-          ),
+          child: Icon(icon, color: const Color(0xFF64B5F6), size: 19),
         ),
         const SizedBox(width: 10),
         Text(
@@ -318,15 +260,13 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
   Widget _buildScreenshots() {
     return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _ScreenshotContainer(
             child: ScreenshotViewer(
               imagePath: widget.game.screenshot1,
-              heroTag:
-                  'screenshot-1-${widget.game.id}',
+              heroTag: 'screenshot-1-${widget.game.id}',
             ),
           ),
         ),
@@ -337,8 +277,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
           child: _ScreenshotContainer(
             child: ScreenshotViewer(
               imagePath: widget.game.screenshot2,
-              heroTag:
-                  'screenshot-2-${widget.game.id}',
+              heroTag: 'screenshot-2-${widget.game.id}',
             ),
           ),
         ),
@@ -346,17 +285,14 @@ class _GameDetailsViewState extends State<GameDetailsView>
     );
   }
 
-  Widget _buildDownloadButton(
-    BuildContext context,
-  ) {
+  Widget _buildDownloadButton(BuildContext context) {
     return Container(
       height: 58,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2196F3)
-                .withValues(alpha: 0.22),
+            color: const Color(0xFF2196F3).withValues(alpha: 0.22),
             blurRadius: 22,
             spreadRadius: 1,
           ),
@@ -371,16 +307,10 @@ class _GameDetailsViewState extends State<GameDetailsView>
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-        icon: const Icon(
-          Icons.download_rounded,
-          size: 22,
-        ),
+        icon: const Icon(Icons.download_rounded, size: 22),
         label: const Text(
           'Download Game',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -390,23 +320,18 @@ class _GameDetailsViewState extends State<GameDetailsView>
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.open_in_new_rounded,
             size: 14,
-            color: Colors.white.withValues(
-              alpha: 0.40,
-            ),
+            color: Colors.white.withValues(alpha: 0.40),
           ),
           const SizedBox(width: 6),
           Text(
             'Opens the official download website',
             style: TextStyle(
-              color: Colors.white.withValues(
-                alpha: 0.42,
-              ),
+              color: Colors.white.withValues(alpha: 0.42),
               fontSize: 11,
             ),
           ),
@@ -423,11 +348,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF071426),
-                Color(0xFF0B1020),
-                Color(0xFF130A20),
-              ],
+              colors: [Color(0xFF071426), Color(0xFF0B1020), Color(0xFF130A20)],
             ),
           ),
         ),
@@ -435,57 +356,38 @@ class _GameDetailsViewState extends State<GameDetailsView>
         Positioned(
           top: -120,
           right: -100,
-          child: _buildGlow(
-            size: 320,
-            color: Colors.blue,
-          ),
+          child: _buildGlow(size: 320, color: Colors.blue),
         ),
 
         Positioned(
           top: 360,
           left: -150,
-          child: _buildGlow(
-            size: 340,
-            color: Colors.deepPurple,
-          ),
+          child: _buildGlow(size: 340, color: Colors.deepPurple),
         ),
 
         Positioned(
           bottom: -180,
           right: -120,
-          child: _buildGlow(
-            size: 300,
-            color: Colors.indigo,
-          ),
+          child: _buildGlow(size: 300, color: Colors.indigo),
         ),
 
         Positioned.fill(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 65,
-              sigmaY: 65,
-            ),
-            child: Container(
-              color: Colors.transparent,
-            ),
+            filter: ImageFilter.blur(sigmaX: 65, sigmaY: 65),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildGlow({
-    required double size,
-    required Color color,
-  }) {
+  Widget _buildGlow({required double size, required Color color}) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(
-          alpha: 0.17,
-        ),
+        color: color.withValues(alpha: 0.17),
       ),
     );
   }
@@ -495,10 +397,7 @@ class _AnimatedSection extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
 
-  const _AnimatedSection({
-    required this.animation,
-    required this.child,
-  });
+  const _AnimatedSection({required this.animation, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -509,10 +408,7 @@ class _AnimatedSection extends StatelessWidget {
 
     return FadeTransition(
       opacity: animation,
-      child: SlideTransition(
-        position: slideAnimation,
-        child: child,
-      ),
+      child: SlideTransition(position: slideAnimation, child: child),
     );
   }
 }
@@ -521,38 +417,22 @@ class _GlassCircleButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
 
-  const _GlassCircleButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _GlassCircleButton({required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return ClipOval(
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 16,
-          sigmaY: 16,
-        ),
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(
-              alpha: 0.10,
-            ),
+            color: Colors.white.withValues(alpha: 0.10),
             shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.12,
-              ),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: IconButton(
             onPressed: onPressed,
-            icon: Icon(
-              icon,
-              color: Colors.white,
-              size: 21,
-            ),
+            icon: Icon(icon, color: Colors.white, size: 21),
           ),
         ),
       ),
@@ -563,34 +443,23 @@ class _GlassCircleButton extends StatelessWidget {
 class _ScreenshotContainer extends StatelessWidget {
   final Widget child;
 
-  const _ScreenshotContainer({
-    required this.child,
-  });
+  const _ScreenshotContainer({required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(19),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.10,
-          ),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: 0.20,
-            ),
+            color: Colors.black.withValues(alpha: 0.20),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: child,
-      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(18), child: child),
     );
   }
 }
