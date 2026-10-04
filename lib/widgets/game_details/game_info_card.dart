@@ -6,10 +6,12 @@ import '../../models/game.dart';
 
 class GameInfoCard extends StatelessWidget {
   final Game game;
+  final int? downloadCount;
 
   const GameInfoCard({
     super.key,
     required this.game,
+    required this.downloadCount,
   });
 
   @override
@@ -17,19 +19,14 @@ class GameInfoCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
-        ),
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.10),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,6 +86,35 @@ class GameInfoCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 18),
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.10)),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.download_outlined,
+                    color: Color(0xFF2196F3),
+                    size: 21,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Downloads',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    downloadCount?.toString() ?? '—',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -100,9 +126,7 @@ class GameInfoCard extends StatelessWidget {
     return Container(
       width: 1,
       height: 55,
-      color: Colors.white.withValues(
-        alpha: 0.10,
-      ),
+      color: Colors.white.withValues(alpha: 0.10),
     );
   }
 }
@@ -122,16 +146,11 @@ class _InfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String displayValue =
-        value.trim().isEmpty ? fallback : value;
+    final String displayValue = value.trim().isEmpty ? fallback : value;
 
     return Column(
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFF2196F3),
-          size: 21,
-        ),
+        Icon(icon, color: const Color(0xFF2196F3), size: 21),
 
         const SizedBox(height: 8),
 
@@ -140,9 +159,7 @@ class _InfoItem extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white.withValues(
-              alpha: 0.50,
-            ),
+            color: Colors.white.withValues(alpha: 0.50),
             fontSize: 11,
           ),
         ),
@@ -155,9 +172,7 @@ class _InfoItem extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: value.trim().isEmpty
-                ? Colors.white38
-                : Colors.white,
+            color: value.trim().isEmpty ? Colors.white38 : Colors.white,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),

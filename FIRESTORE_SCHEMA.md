@@ -49,9 +49,25 @@ The app increments `count` after successfully opening a game's download URL:
 
 ## `users/{uid}`
 
-Create admin role documents manually in the Firebase Console. Clients can read
-their own role document to gate the admin interface, but cannot create or edit
-role documents.
+Users create profile documents when they sign up. Admin role documents are
+still assigned manually in the Firebase Console. A profile document can look
+like this:
+
+```json
+{
+  "displayName": "Player One",
+  "email": "player@example.com",
+  "avatarId": 2,
+  "createdAt": "server timestamp",
+  "updatedAt": "server timestamp"
+}
+```
+
+`avatarId` selects one of the five generated in-app icons (0–4). Users can
+update their display name and avatar. They cannot assign or edit the `role`
+field. Admins receive read-only access to the `users` collection for the user
+records screen. Assign administrator roles manually by adding `role: "admin"`
+to the user's document in the Firebase Console.
 
 ```json
 { "role": "admin" }

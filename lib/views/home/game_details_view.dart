@@ -23,6 +23,8 @@ class GameDetailsView extends StatefulWidget {
 
 class _GameDetailsViewState extends State<GameDetailsView>
     with SingleTickerProviderStateMixin {
+  int? _downloadCount;
+
   late final AnimationController _animationController;
 
   late final Animation<double> _headerAnimation;
@@ -66,6 +68,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
     );
 
     _animationController.forward();
+    _loadDownloadCount();
   }
 
   @override
@@ -83,11 +86,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
     }
 
     if (widget.game.id.isNotEmpty) {
-      unawaited(
-        GameRepository()
-            .incrementDownloadCount(widget.game.id)
-            .catchError((Object _) {}),
-      );
+      unawaited(_recordDownloadTap());
     }
 
     try {
@@ -107,6 +106,26 @@ class _GameDetailsViewState extends State<GameDetailsView>
         );
       }
     }
+  }
+
+  Future<void> _loadDownloadCount() async {
+    if (widget.game.id.isEmpty) {
+      if (mounted) setState(() => _downloadCount = 0);
+      return;
+    }
+
+    try {
+      final Map<String, int> counts = await GameRepository()
+          .fetchDownloadCounts([widget.game.id]);
+      if (mounted) setState(() => _downloadCount = counts[widget.game.id] ?? 0);
+    } catch (_) {}
+  }
+
+  Future<void> _recordDownloadTap() async {
+    try {
+      await GameRepository().incrementDownloadCount(widget.game.id);
+      await _loadDownloadCount();
+    } catch (_) {}
   }
 
   void _showMessage(BuildContext context, String message) {
@@ -151,7 +170,10 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
                       _AnimatedSection(
                         animation: _infoAnimation,
-                        child: GameInfoCard(game: widget.game),
+                        child: GameInfoCard(
+                          game: widget.game,
+                          downloadCount: _downloadCount,
+                        ),
                       ),
 
                       const SizedBox(height: 18),

@@ -5,17 +5,11 @@ import '../../models/game.dart';
 class GameDetailsHeader extends StatelessWidget {
   final Game game;
 
-  const GameDetailsHeader({
-    super.key,
-    required this.game,
-  });
+  const GameDetailsHeader({super.key, required this.game});
 
   @override
   Widget build(BuildContext context) {
-    final String gameName = _displayValue(
-      game.name,
-      fallback: 'Unknown Game',
-    );
+    final String gameName = _displayValue(game.name, fallback: 'Unknown Game');
 
     final String category = _displayValue(
       game.category,
@@ -28,19 +22,7 @@ class GameDetailsHeader extends StatelessWidget {
           tag: 'game-icon-${game.id}',
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
-            child: Image.asset(
-              game.icon,
-              width: 120,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (
-                context,
-                error,
-                stackTrace,
-              ) {
-                return _buildFallbackIcon();
-              },
-            ),
+            child: _buildIconPreview(),
           ),
         ),
 
@@ -61,19 +43,12 @@ class GameDetailsHeader extends StatelessWidget {
         const SizedBox(height: 8),
 
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF2196F3).withValues(
-              alpha: 0.15,
-            ),
+            color: const Color(0xFF2196F3).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF2196F3).withValues(
-                alpha: 0.15,
-              ),
+              color: const Color(0xFF2196F3).withValues(alpha: 0.15),
             ),
           ),
           child: Text(
@@ -89,20 +64,37 @@ class GameDetailsHeader extends StatelessWidget {
     );
   }
 
+  Widget _buildIconPreview() {
+    final String icon = game.icon.trim();
+    if (icon.isEmpty) return _buildFallbackIcon();
+
+    if (icon.startsWith('https://') || icon.startsWith('http://')) {
+      return Image.network(
+        icon,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(),
+      );
+    }
+
+    return Image.asset(
+      icon,
+      width: 120,
+      height: 120,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(),
+    );
+  }
+
   Widget _buildFallbackIcon() {
     return Container(
       width: 120,
       height: 120,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.08,
-        ),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.10,
-          ),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: const Icon(
         Icons.sports_esports_rounded,
@@ -112,10 +104,7 @@ class GameDetailsHeader extends StatelessWidget {
     );
   }
 
-  String _displayValue(
-    String value, {
-    required String fallback,
-  }) {
+  String _displayValue(String value, {required String fallback}) {
     if (value.trim().isEmpty) {
       return fallback;
     }

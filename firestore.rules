@@ -12,8 +12,31 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if signedIn() && request.auth.uid == userId;
-      allow list, create, update, delete: if false;
+      allow get: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly([
+          'displayName', 'email', 'avatarId', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.avatarId is int
+        && request.resource.data.avatarId >= 0
+        && request.resource.data.avatarId <= 4
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'avatarId', 'updatedAt'
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.avatarId is int
+        && request.resource.data.avatarId >= 0
+        && request.resource.data.avatarId <= 4
+        && request.resource.data.updatedAt is timestamp;
+      allow delete: if false;
     }
 
     match /games/{gameId} {

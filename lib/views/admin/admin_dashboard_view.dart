@@ -7,6 +7,7 @@ import '../../services/game_repository.dart';
 import 'admin_categories_view.dart';
 import 'admin_downloads_view.dart';
 import 'admin_games_view.dart';
+import 'admin_users_view.dart';
 
 class AdminDashboardView extends StatelessWidget {
   const AdminDashboardView({super.key});
@@ -97,6 +98,13 @@ class AdminDashboardView extends StatelessWidget {
                         subtitle: 'Review download counts by game',
                         onTap: () =>
                             _openPage(context, const AdminDownloadsView()),
+                      ),
+                      const SizedBox(height: 10),
+                      _AdminNavigationTile(
+                        icon: Icons.people_alt_rounded,
+                        title: 'Users',
+                        subtitle: 'View account records and join dates',
+                        onTap: () => _openPage(context, const AdminUsersView()),
                       ),
                       const SizedBox(height: 18),
                       DecoratedBox(

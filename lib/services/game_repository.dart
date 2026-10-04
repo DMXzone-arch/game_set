@@ -40,7 +40,7 @@ class GameRepository {
 
   Future<List<Game>> fetchGames() => _fetchGames(includeUnpublished: false);
 
-  Future<List<Game>> fetchAdminGames() => _fetchGames(includeUnpublished: true);
+  Future<List<Game>> fetch7Games() => _fetchGames(includeUnpublished: true);
 
   Future<List<Game>> _fetchGames({required bool includeUnpublished}) async {
     Query<Map<String, dynamic>> gameQuery = _database.collection('games');

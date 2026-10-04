@@ -11,6 +11,7 @@ class GameViewModel extends ChangeNotifier {
   final GameRepository _repository;
 
   bool _isLoading = false;
+  bool _hasLoaded = false;
   bool _hasError = false;
   String? _errorMessage;
 
@@ -18,10 +19,11 @@ class GameViewModel extends ChangeNotifier {
   List<Game> _mostDownloadedGames = [];
 
   List<String> _categories = ['All'];
+  int _loadGeneration = 0;
 
-  bool get isLoading => _isLoading;
+  bool get isLoading => _isLoading && !_hasLoaded;
 
-  bool get hasError => _hasError;
+  bool get hasError => _hasError && !_hasLoaded;
 
   String? get errorMessage => _errorMessage;
 
@@ -32,46 +34,67 @@ class GameViewModel extends ChangeNotifier {
   List<String> get categories => List.unmodifiable(_categories);
 
   Future<void> loadGames() async {
+    final int generation = ++_loadGeneration;
     _isLoading = true;
     _hasError = false;
     _errorMessage = null;
-    _mostDownloadedGames = [];
 
     notifyListeners();
 
     try {
-      final List<Game> games = await _repository.fetchGames();
-      final List<String> categories = await _repository.fetchCategories();
-      Map<String, int> downloadCounts = {};
-      try {
-        downloadCounts = await _repository.fetchDownloadCounts(
-          games.map((game) => game.id).toList(),
-        );
-      } catch (_) {}
+      final List<Object> catalogResults = await Future.wait<Object>([
+        _repository.fetchGames(),
+        _repository.fetchCategories(),
+      ]);
+      if (generation != _loadGeneration) return;
 
-      final List<Game> mostDownloadedGames =
-          games.where((game) => (downloadCounts[game.id] ?? 0) > 0).toList()
-            ..sort(
-              (first, second) => (downloadCounts[second.id] ?? 0).compareTo(
-                downloadCounts[first.id] ?? 0,
-              ),
-            );
+      final List<Game> games = catalogResults[0] as List<Game>;
+      final List<String> categories = catalogResults[1] as List<String>;
 
       _games = games;
-      _mostDownloadedGames = mostDownloadedGames;
       _categories = [
         'All',
         ...categories.where((category) => category != 'All'),
       ];
 
+      _hasLoaded = true;
       _hasError = false;
-    } catch (error) {
-      _hasError = true;
-      _errorMessage = FirebaseStatus.initializationError ?? error.toString();
-    } finally {
       _isLoading = false;
       notifyListeners();
+
+      await _loadMostDownloadedGames(games, generation);
+    } catch (error) {
+      if (generation == _loadGeneration) {
+        if (!_hasLoaded) {
+          _hasError = true;
+          _errorMessage =
+              FirebaseStatus.initializationError ?? error.toString();
+        }
+        _isLoading = false;
+        notifyListeners();
+      }
     }
+  }
+
+  Future<void> _loadMostDownloadedGames(
+    List<Game> games,
+    int generation,
+  ) async {
+    try {
+      final Map<String, int> downloadCounts = await _repository
+          .fetchDownloadCounts(games.map((game) => game.id).toList());
+      if (generation != _loadGeneration) return;
+
+      _mostDownloadedGames =
+          games.where((game) {
+            return (downloadCounts[game.id] ?? 0) > 0;
+          }).toList()..sort((first, second) {
+            return (downloadCounts[second.id] ?? 0).compareTo(
+              downloadCounts[first.id] ?? 0,
+            );
+          });
+      notifyListeners();
+    } catch (_) {}
   }
 
   List<Game> getGamesByCategory(String category) {

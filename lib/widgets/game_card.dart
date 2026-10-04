@@ -9,8 +9,9 @@ import '../views/home/game_details_view.dart';
 
 class GameCard extends StatefulWidget {
   final Game game;
+  final VoidCallback? onDetailsClosed;
 
-  const GameCard({super.key, required this.game});
+  const GameCard({super.key, required this.game, this.onDetailsClosed});
 
   @override
   State<GameCard> createState() => _GameCardState();
@@ -60,6 +61,15 @@ class _GameCardState extends State<GameCard> {
     );
   }
 
+  Future<void> _openDetails() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => GameDetailsView(game: widget.game),
+      ),
+    );
+    if (mounted) widget.onDetailsClosed?.call();
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -93,13 +103,7 @@ class _GameCardState extends State<GameCard> {
               onTapCancel: () => setState(() => isPressed = false),
               onTapUp: (_) {
                 setState(() => isPressed = false);
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GameDetailsView(game: widget.game),
-                  ),
-                );
+                unawaited(_openDetails());
               },
               child: AspectRatio(
                 aspectRatio: 1.3,

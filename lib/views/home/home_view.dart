@@ -84,11 +84,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Future<void> _loadGames() async {
-    _homeAnimationController.reset();
-
     await viewModel.loadGames();
 
-    if (mounted) {
+    if (mounted &&
+        _homeAnimationController.status != AnimationStatus.completed) {
       _homeAnimationController.forward();
     }
   }
@@ -197,8 +196,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           child: HomeContent(
                             key: ValueKey(
                               '${viewModel.selectedCategory}_'
-                              '${viewModel.submittedSearchQuery}_'
-                              '${viewModel.filteredGames.map((game) => game.id).join('_')}',
+                              '${viewModel.submittedSearchQuery}',
                             ),
                             games: viewModel.filteredGames,
                             mostDownloadedGames:

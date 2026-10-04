@@ -31,15 +31,19 @@ Firestore records only. See
 ## Run on Chrome
 
 Register a Web app in Firebase Console under the `gameset-c135b` project. Copy
-its App ID from the web config (it begins `1:7237385895:web:`), then run:
+its App ID from the web config, then copy `.env.example` to `.env` and fill in
+the Firebase Web values. Run:
 
 ```sh
-flutter run -d chrome --dart-define=FIREBASE_APP_ID=1:7237385895:web:YOUR_WEB_APP_ID
+flutter run -d chrome --dart-define-from-file=.env
 ```
 
-The project ID, API key, sender ID, auth domain, and storage bucket already
-have defaults in the app. If Chrome still shows a backend error, it now shows
-the Firebase initialization or Firestore error in the catalog screen.
+`.env` is ignored by Git. Firebase Web configuration is included in the
+compiled client app, so treat these values as public configuration rather than
+secrets. Protect data with Firebase Authentication, Firestore rules, and API
+key restrictions; never put service-account credentials or other server
+secrets in this file. If Chrome shows a backend error, the catalog screen
+shows the Firebase initialization or Firestore error.
 
 ## Other platforms
 

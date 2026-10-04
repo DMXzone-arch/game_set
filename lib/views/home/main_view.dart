@@ -2,8 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'games_view.dart';
 import 'home_view.dart';
-import 'settings_view.dart';
+import 'profile_view.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key});
@@ -14,8 +15,7 @@ class MainView extends StatefulWidget {
 
 class _MainViewState extends State<MainView> {
   int selectedIndex = 0;
-
-  final List<Widget> pages = const [HomeView(), SettingsView()];
+  String selectedGamesCategory = 'All';
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +39,25 @@ class _MainViewState extends State<MainView> {
         },
         child: KeyedSubtree(
           key: ValueKey(selectedIndex),
-          child: pages[selectedIndex],
+          child: _buildPage(selectedIndex),
         ),
       ),
       bottomNavigationBar: _buildNavigationBar(),
     );
+  }
+
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return const HomeView();
+      case 1:
+        return GamesView(
+          initialCategory: selectedGamesCategory,
+          onCategoryChanged: (category) => selectedGamesCategory = category,
+        );
+      default:
+        return const ProfileView();
+    }
   }
 
   Widget _buildNavigationBar() {
@@ -73,9 +87,17 @@ class _MainViewState extends State<MainView> {
                 Expanded(
                   child: _buildNavigationItem(
                     index: 1,
-                    icon: Icons.settings_outlined,
-                    selectedIcon: Icons.settings,
-                    label: 'Settings',
+                    icon: Icons.sports_esports_outlined,
+                    selectedIcon: Icons.sports_esports,
+                    label: 'Games',
+                  ),
+                ),
+                Expanded(
+                  child: _buildNavigationItem(
+                    index: 2,
+                    icon: Icons.person_outline_rounded,
+                    selectedIcon: Icons.person_rounded,
+                    label: 'Profile',
                   ),
                 ),
               ],
