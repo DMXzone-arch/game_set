@@ -77,8 +77,9 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                 ),
               );
             }
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
             final List<AdminUserRecord> users = snapshot.data!;
             return RefreshIndicator(
               onRefresh: () async => _reload(),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'games_view.dart';
 import 'home_view.dart';
 import 'profile_view.dart';
+import 'wishlist_view.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key});
@@ -55,6 +56,8 @@ class _MainViewState extends State<MainView> {
           initialCategory: selectedGamesCategory,
           onCategoryChanged: (category) => selectedGamesCategory = category,
         );
+      case 2:
+        return const WishlistView();
       default:
         return const ProfileView();
     }
@@ -95,6 +98,14 @@ class _MainViewState extends State<MainView> {
                 Expanded(
                   child: _buildNavigationItem(
                     index: 2,
+                    icon: Icons.favorite_border_rounded,
+                    selectedIcon: Icons.favorite_rounded,
+                    label: 'Wishlist',
+                  ),
+                ),
+                Expanded(
+                  child: _buildNavigationItem(
+                    index: 3,
                     icon: Icons.person_outline_rounded,
                     selectedIcon: Icons.person_rounded,
                     label: 'Profile',
@@ -131,7 +142,7 @@ class _MainViewState extends State<MainView> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? const Color(0xFF1565C0).withValues(alpha: 0.25)
@@ -162,7 +173,7 @@ class _MainViewState extends State<MainView> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

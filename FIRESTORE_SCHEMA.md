@@ -69,6 +69,15 @@ field. Admins receive read-only access to the `users` collection for the user
 records screen. Assign administrator roles manually by adding `role: "admin"`
 to the user's document in the Firebase Console.
 
+### `users/{uid}/wishlist/{gameId}`
+
+Each signed-in user has a private subcollection of saved published games. The
+document ID is the game ID; only the owner can read or change these records.
+
+```json
+{ "addedAt": "server timestamp" }
+```
+
 ```json
 { "role": "admin" }
 ```

@@ -3,14 +3,17 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/game.dart';
 import '../../services/game_repository.dart';
+import '../../services/wishlist_service.dart';
 import '../../widgets/game_details/game_description.dart';
 import '../../widgets/game_details/game_details_header.dart';
 import '../../widgets/game_details/game_info_card.dart';
 import '../../widgets/game_details/screenshot_viewer.dart';
+import 'login_view.dart';
 
 class GameDetailsView extends StatefulWidget {
   final Game game;
@@ -252,6 +255,10 @@ class _GameDetailsViewState extends State<GameDetailsView>
           fontWeight: FontWeight.w600,
         ),
       ),
+      actions: [
+        _WishlistButton(game: widget.game),
+        const SizedBox(width: 8),
+      ],
     );
   }
 
@@ -413,6 +420,81 @@ class _GameDetailsViewState extends State<GameDetailsView>
       ),
     );
   }
+}
+
+class _WishlistButton extends StatefulWidget {
+  const _WishlistButton({required this.game});
+
+  final Game game;
+
+  @override
+  State<_WishlistButton> createState() => _WishlistButtonState();
+}
+
+class _WishlistButtonState extends State<_WishlistButton> {
+  final WishlistService _wishlist = WishlistService();
+  bool _isSaved = false;
+  bool _working = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final bool saved = await _wishlist.isSaved(widget.game.id);
+      if (mounted) setState(() => _isSaved = saved);
+    } catch (_) {}
+  }
+
+  Future<void> _toggle() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.isAnonymous) {
+      await Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute<void>(builder: (_) => const LoginView()));
+      if (!mounted) return;
+      final User? signedInUser = FirebaseAuth.instance.currentUser;
+      if (signedInUser == null || signedInUser.isAnonymous) return;
+      await _save(true);
+      return;
+    }
+    await _save(!_isSaved);
+  }
+
+  Future<void> _save(bool saved) async {
+    setState(() => _working = true);
+    try {
+      await _wishlist.setSaved(widget.game, saved);
+      if (mounted) setState(() => _isSaved = saved);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Could not update your wishlist.')),
+        );
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: _isSaved ? 'Remove from wishlist' : 'Add to wishlist',
+    onPressed: _working ? null : _toggle,
+    icon: _working
+        ? const SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Icon(
+            _isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            color: _isSaved ? const Color(0xFFFF6B8A) : Colors.white,
+          ),
+  );
 }
 
 class _AnimatedSection extends StatelessWidget {

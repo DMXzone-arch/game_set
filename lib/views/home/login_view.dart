@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/guest_mode_service.dart';
 import '../../services/user_profile_service.dart';
 import '../../widgets/generated_avatar.dart';
 
@@ -16,6 +17,7 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final UserProfileService _profiles = UserProfileService();
+  final GuestModeService _guestMode = GuestModeService();
   final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
@@ -60,6 +62,21 @@ class _LoginViewState extends State<LoginView> {
       } else {
         await _profiles.signIn(email: _email.text, password: _password.text);
       }
+      await _guestMode.clearGuestChoice();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) _showMessage(_errorMessage(error));
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _working = true);
+    try {
+      final UserCredential? credential = await _profiles.signInWithGoogle();
+      if (credential == null) return;
+      await _guestMode.clearGuestChoice();
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) _showMessage(_errorMessage(error));
@@ -164,8 +181,42 @@ class _LoginViewState extends State<LoginView> {
                             style: const TextStyle(color: Colors.white60),
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: _working ? null : _signInWithGoogle,
+                            icon: const Text(
+                              'G',
+                              style: TextStyle(
+                                color: Color(0xFF4285F4),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            label: const Text('Continue with Google'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.white24)),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.white24)),
+                          ],
+                        ),
                         if (_creatingAccount) ...[
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
                           _input(
                             _name,
                             'Display name',

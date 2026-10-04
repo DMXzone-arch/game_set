@@ -6,22 +6,27 @@ Firestore.
 ## Firebase setup
 
 The Android Firebase app is already configured in
-`android/app/google-services.json` for project `gameset-c135b`. Enable
-**Email/Password** in Firebase Authentication and create an admin account.
-Then add `users/{AUTH_UID}` in Firestore with:
+`android/app/google-services.json` for project `gameset-c135b`. Enable **Google**
+and, if you want the email form, **Email/Password** in Firebase Authentication.
+Google Sign-In uses Firebase Authentication and the official Flutter Google
+Sign-In package. In Google Cloud Console, configure the OAuth consent screen and
+create the OAuth clients for this app. Register the Android package name and
+SHA-1 certificate in Firebase Project Settings, then download the refreshed
+`google-services.json` into `android/app/`. The file must contain the web OAuth
+client entry as well as the Android client. The current file has no OAuth client
+entries, so Google sign-in will remain unavailable until this setup is done.
 
-```json
-{ "role": "admin" }
-```
-
-Sign in from Settings by tapping the version row seven times. Never set admin
-roles from the client.
+Guests can browse the catalog. A signed-in Google or email account is required
+to save games to its private wishlist.
 
 Deploy `firestore.rules` before using the app:
 
 ```sh
 firebase deploy --only firestore:rules
 ```
+
+The admin interface is not part of this consumer app. Admin accounts and
+management screens will live in the separate admin app.
 
 The admin editor accepts direct, publicly accessible image URLs, so Firebase
 Storage and a billing account are not required. The catalog shows published

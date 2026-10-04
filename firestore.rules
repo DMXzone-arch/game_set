@@ -37,6 +37,12 @@ service cloud.firestore {
         && request.resource.data.avatarId <= 4
         && request.resource.data.updatedAt is timestamp;
       allow delete: if false;
+
+      match /wishlist/{gameId} {
+        allow read, create, update, delete: if signedIn()
+          && request.auth.uid == userId
+          && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      }
     }
 
     match /games/{gameId} {

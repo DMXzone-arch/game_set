@@ -1,12 +1,8 @@
 import 'dart:ui';
-import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../about_view.dart';
-import '../admin/admin_dashboard_view.dart';
-import '../../services/admin_auth_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -16,132 +12,6 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  int _versionTapCount = 0;
-  Timer? _versionTapTimer;
-  final TextEditingController _adminEmailController = TextEditingController();
-  final TextEditingController _adminPasswordController =
-      TextEditingController();
-
-  @override
-  void dispose() {
-    _versionTapTimer?.cancel();
-    _adminEmailController.dispose();
-    _adminPasswordController.dispose();
-    super.dispose();
-  }
-
-  void _onVersionTapped() {
-    _versionTapTimer?.cancel();
-    _versionTapCount++;
-    _versionTapTimer = Timer(const Duration(seconds: 3), () {
-      _versionTapCount = 0;
-    });
-
-    if (_versionTapCount >= 7) {
-      _versionTapCount = 0;
-      _versionTapTimer?.cancel();
-      _requestAdminAccess();
-    }
-  }
-
-  Future<void> _requestAdminAccess() async {
-    _adminEmailController.clear();
-    _adminPasswordController.clear();
-    bool isSigningIn = false;
-    Future<void> signIn(
-      StateSetter setDialogState,
-      BuildContext dialogContext,
-    ) async {
-      setDialogState(() => isSigningIn = true);
-      try {
-        await AdminAuthService().signInAsAdmin(
-          email: _adminEmailController.text,
-          password: _adminPasswordController.text,
-        );
-        if (dialogContext.mounted) Navigator.of(dialogContext).pop(true);
-      } catch (error) {
-        if (!dialogContext.mounted) return;
-        setDialogState(() => isSigningIn = false);
-        final String message = switch (error) {
-          AdminAccessDeniedException() =>
-            'This account is not an administrator.',
-          FirebaseAuthException(:final code) => switch (code) {
-            'invalid-credential' ||
-            'wrong-password' ||
-            'user-not-found' => 'Email or password is incorrect.',
-            'network-request-failed' =>
-              'Check your internet connection and try again.',
-            _ => error.message ?? 'Could not sign in. Please try again.',
-          },
-          _ =>
-            'Could not verify admin access. Check your connection and try again.',
-        };
-        ScaffoldMessenger.of(
-          dialogContext,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
-    }
-
-    final bool? signedIn = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Admin access'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _adminEmailController,
-                autofocus: true,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.username],
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _adminPasswordController,
-                obscureText: true,
-                autofillHints: const [AutofillHints.password],
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline_rounded),
-                ),
-                onSubmitted: (_) => signIn(setDialogState, dialogContext),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: isSigningIn
-                  ? null
-                  : () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: isSigningIn
-                  ? null
-                  : () => signIn(setDialogState, dialogContext),
-              child: isSigningIn
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Continue'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (!mounted || signedIn != true) return;
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const AdminDashboardView()));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,7 +51,7 @@ class _SettingsViewState extends State<SettingsView> {
                           icon: Icons.info_outline_rounded,
                           title: 'Version',
                           subtitle: 'v1.0.0',
-                          onTap: _onVersionTapped,
+                          onTap: () {},
                           subtleTap: true,
                         ),
                       ],

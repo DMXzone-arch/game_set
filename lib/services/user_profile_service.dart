@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class UserProfileService {
   UserProfileService({FirebaseAuth? auth, FirebaseFirestore? firestore})
@@ -10,6 +12,8 @@ class UserProfileService {
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+
+  static Future<void>? _googleSignInInitialization;
 
   User? get currentUser => _auth.currentUser;
   Stream<User?> authChanges() => _auth.authStateChanges();
@@ -53,27 +57,66 @@ class UserProfileService {
     final User? user = credential.user;
     if (user != null) {
       try {
-        final DocumentReference<Map<String, dynamic>> profile = _firestore
-            .collection('users')
-            .doc(user.uid);
-        final DocumentSnapshot<Map<String, dynamic>> snapshot = await profile
-            .get();
-        if (!snapshot.exists) {
-          final String emailAddress = user.email ?? email.trim();
-          await profile.set({
-            'displayName': user.displayName ?? emailAddress.split('@').first,
-            'email': emailAddress,
-            'avatarId': Random.secure().nextInt(5),
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
+        await _ensureProfile(user);
       } catch (_) {
         await _auth.signOut();
         rethrow;
       }
     }
     return credential;
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    late final UserCredential credential;
+    if (kIsWeb) {
+      credential = await _auth.signInWithPopup(GoogleAuthProvider());
+    } else {
+      try {
+        _googleSignInInitialization ??= GoogleSignIn.instance.initialize();
+        await _googleSignInInitialization;
+        final GoogleSignInAccount googleUser = await GoogleSignIn.instance
+            .authenticate();
+        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+        final String? idToken = googleAuth.idToken;
+        if (idToken == null || idToken.isEmpty) {
+          throw StateError(
+            'Google did not return an ID token. Check the OAuth client setup.',
+          );
+        }
+        credential = await _auth.signInWithCredential(
+          GoogleAuthProvider.credential(idToken: idToken),
+        );
+      } on GoogleSignInException catch (error) {
+        if (error.code == GoogleSignInExceptionCode.canceled) return null;
+        rethrow;
+      }
+    }
+    if (credential.user != null) {
+      try {
+        await _ensureProfile(credential.user!);
+      } catch (_) {
+        await _auth.signOut();
+        rethrow;
+      }
+    }
+    return credential;
+  }
+
+  Future<void> _ensureProfile(User user) async {
+    final DocumentReference<Map<String, dynamic>> profile = _firestore
+        .collection('users')
+        .doc(user.uid);
+    final DocumentSnapshot<Map<String, dynamic>> snapshot = await profile.get();
+    if (snapshot.exists) return;
+
+    final String email = user.email ?? '';
+    await profile.set({
+      'displayName': user.displayName ?? email.split('@').first,
+      'email': email,
+      'avatarId': Random.secure().nextInt(5),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> sendPasswordResetEmail(String email) =>

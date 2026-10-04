@@ -1,7 +1,10 @@
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/guest_mode_service.dart';
+import 'entry_view.dart';
 import 'main_view.dart';
 
 class SplashView extends StatefulWidget {
@@ -11,8 +14,7 @@ class SplashView extends StatefulWidget {
   State<SplashView> createState() => _SplashViewState();
 }
 
-class _SplashViewState extends State<SplashView>
-    with TickerProviderStateMixin {
+class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   late final AnimationController _logoController;
   late final AnimationController _loadingController;
 
@@ -34,39 +36,21 @@ class _SplashViewState extends State<SplashView>
       duration: const Duration(milliseconds: 1200),
     )..repeat();
 
-    _logoScale = Tween<double>(
-      begin: 0.75,
-      end: 1.0,
-    ).animate(
+    _logoScale = Tween<double>(begin: 0.75, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack),
+    );
+
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: Curves.easeOutBack,
+        curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
       ),
     );
 
-    _logoOpacity = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: const Interval(
-          0.0,
-          0.65,
-          curve: Curves.easeOut,
-        ),
-      ),
-    );
-
-    _logoSlide = Tween<Offset>(
-      begin: const Offset(0, 0.15),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _logoSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _logoController, curve: Curves.easeOutCubic),
+        );
 
     _startSplash();
   }
@@ -74,54 +58,46 @@ class _SplashViewState extends State<SplashView>
   Future<void> _startSplash() async {
     await _logoController.forward();
 
-    await Future.delayed(
-      const Duration(milliseconds: 700),
-    );
+    await Future.delayed(const Duration(milliseconds: 700));
 
     if (!mounted) {
       return;
     }
 
+    bool signedIn = false;
+    try {
+      signedIn = FirebaseAuth.instance.currentUser != null;
+    } catch (_) {}
+    final bool guestMode = await GuestModeService().hasChosenGuestMode();
+    if (!mounted) return;
+    final Widget firstPage = signedIn || guestMode
+        ? const MainView()
+        : const EntryView();
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-        ) {
-          return const MainView();
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return firstPage;
         },
-        transitionDuration:
-            const Duration(milliseconds: 650),
-        reverseTransitionDuration:
-            const Duration(milliseconds: 400),
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
+        transitionDuration: const Duration(milliseconds: 650),
+        reverseTransitionDuration: const Duration(milliseconds: 400),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final fadeAnimation = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOut,
           );
 
-          final slideAnimation = Tween<Offset>(
-            begin: const Offset(0, 0.03),
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-          );
+          final slideAnimation =
+              Tween<Offset>(
+                begin: const Offset(0, 0.03),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
 
           return FadeTransition(
             opacity: fadeAnimation,
-            child: SlideTransition(
-              position: slideAnimation,
-              child: child,
-            ),
+            child: SlideTransition(position: slideAnimation, child: child),
           );
         },
       ),
@@ -146,8 +122,7 @@ class _SplashViewState extends State<SplashView>
           SafeArea(
             child: Center(
               child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   AnimatedBuilder(
                     animation: _logoController,
@@ -173,9 +148,7 @@ class _SplashViewState extends State<SplashView>
                     child: Text(
                       'Play More • Discover More',
                       style: TextStyle(
-                        color: Colors.white.withValues(
-                          alpha: 0.65,
-                        ),
+                        color: Colors.white.withValues(alpha: 0.65),
                         fontSize: 14,
                         letterSpacing: 0.5,
                       ),
@@ -191,9 +164,7 @@ class _SplashViewState extends State<SplashView>
                   Text(
                     'Loading GameSet...',
                     style: TextStyle(
-                      color: Colors.white.withValues(
-                        alpha: 0.55,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.55),
                       fontSize: 13,
                     ),
                   ),
@@ -218,15 +189,11 @@ class _SplashViewState extends State<SplashView>
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF2196F3),
-                Color(0xFF673AB7),
-              ],
+              colors: [Color(0xFF2196F3), Color(0xFF673AB7)],
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2196F3)
-                    .withValues(alpha: 0.35),
+                color: const Color(0xFF2196F3).withValues(alpha: 0.35),
                 blurRadius: 35,
                 spreadRadius: 4,
               ),
@@ -251,15 +218,11 @@ class _SplashViewState extends State<SplashView>
             children: [
               TextSpan(
                 text: 'Game',
-                style: TextStyle(
-                  color: Colors.white,
-                ),
+                style: TextStyle(color: Colors.white),
               ),
               TextSpan(
                 text: 'Set',
-                style: TextStyle(
-                  color: Color(0xFF2196F3),
-                ),
+                style: TextStyle(color: Color(0xFF2196F3)),
               ),
             ],
           ),
@@ -276,9 +239,7 @@ class _SplashViewState extends State<SplashView>
         animation: _loadingController,
         builder: (context, child) {
           return Transform.rotate(
-            angle: _loadingController.value *
-                2 *
-                3.14159265359,
+            angle: _loadingController.value * 2 * 3.14159265359,
             child: child,
           );
         },
@@ -286,9 +247,7 @@ class _SplashViewState extends State<SplashView>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.15,
-              ),
+              color: Colors.white.withValues(alpha: 0.15),
               width: 3,
             ),
           ),
@@ -318,11 +277,7 @@ class _SplashViewState extends State<SplashView>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF071426),
-                Color(0xFF0B1020),
-                Color(0xFF130A20),
-              ],
+              colors: [Color(0xFF071426), Color(0xFF0B1020), Color(0xFF130A20)],
             ),
           ),
         ),
@@ -330,57 +285,38 @@ class _SplashViewState extends State<SplashView>
         Positioned(
           top: -130,
           left: -100,
-          child: _buildGlow(
-            size: 320,
-            color: Colors.blue,
-          ),
+          child: _buildGlow(size: 320, color: Colors.blue),
         ),
 
         Positioned(
           top: 260,
           right: -130,
-          child: _buildGlow(
-            size: 340,
-            color: Colors.deepPurple,
-          ),
+          child: _buildGlow(size: 340, color: Colors.deepPurple),
         ),
 
         Positioned(
           bottom: -120,
           left: -100,
-          child: _buildGlow(
-            size: 300,
-            color: Colors.cyan,
-          ),
+          child: _buildGlow(size: 300, color: Colors.cyan),
         ),
 
         Positioned.fill(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 60,
-              sigmaY: 60,
-            ),
-            child: Container(
-              color: Colors.transparent,
-            ),
+            filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildGlow({
-    required double size,
-    required Color color,
-  }) {
+  Widget _buildGlow({required double size, required Color color}) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(
-          alpha: 0.20,
-        ),
+        color: color.withValues(alpha: 0.20),
       ),
     );
   }

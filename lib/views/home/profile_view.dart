@@ -3,8 +3,10 @@ import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/guest_mode_service.dart';
 import '../../services/user_profile_service.dart';
 import '../../widgets/generated_avatar.dart';
+import 'entry_view.dart';
 import 'login_view.dart';
 import 'settings_view.dart';
 
@@ -17,6 +19,7 @@ class ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<ProfileView> {
   final UserProfileService _profiles = UserProfileService();
+  final GuestModeService _guestMode = GuestModeService();
   final TextEditingController _name = TextEditingController();
   bool _working = false;
   int _avatarId = 0;
@@ -42,14 +45,25 @@ class _ProfileViewState extends State<ProfileView> {
       if (!mounted) return;
       setState(() => _profileRevision++);
       _showMessage('Profile updated.');
-    } catch (error) {
-      if (mounted)
+    } catch (_) {
+      if (mounted) {
         _showMessage(
           'Could not save your profile. Check your connection and try again.',
         );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  Future<void> _signOut() async {
+    await _profiles.signOut();
+    await _guestMode.clearGuestChoice();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const EntryView()),
+      (_) => false,
+    );
   }
 
   void _showMessage(String message) {
@@ -211,7 +225,6 @@ class _ProfileViewState extends State<ProfileView> {
           _name.text = displayName;
           _avatarId = avatarId;
         }
-        final bool isAdmin = data['role'] == 'admin';
         return Column(
           children: [
             _panel(
@@ -250,7 +263,6 @@ class _ProfileViewState extends State<ProfileView> {
                             ],
                           ),
                         ),
-                        if (isAdmin) const _AdminBadge(),
                       ],
                     ),
                     const SizedBox(height: 22),
@@ -304,7 +316,7 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
                     const SizedBox(height: 6),
                     TextButton.icon(
-                      onPressed: _working ? null : _profiles.signOut,
+                      onPressed: _working ? null : _signOut,
                       icon: const Icon(Icons.logout_rounded),
                       label: const Text('Sign out'),
                     ),
@@ -436,15 +448,5 @@ class _ProfileGlow extends StatelessWidget {
       shape: BoxShape.circle,
       color: color.withValues(alpha: .12),
     ),
-  );
-}
-
-class _AdminBadge extends StatelessWidget {
-  const _AdminBadge();
-  @override
-  Widget build(BuildContext context) => const Chip(
-    avatar: Icon(Icons.verified_user_rounded, size: 15),
-    label: Text('Admin'),
-    visualDensity: VisualDensity.compact,
   );
 }
