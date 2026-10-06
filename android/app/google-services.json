@@ -12,7 +12,20 @@
           "package_name": "com.example.game_set"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "7237385895-mvn282ssvtg83pqr8ve64jmcv2lo2pe4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.game_set",
+            "certificate_hash": "0088f069a13819ce7869dd73a932c20c2d955613"
+          }
+        },
+        {
+          "client_id": "7237385895-g8tvejfc2gurod3kalmoaunh0ajhvj59.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC3sfkQgnFmGX_okbN45DJR8GvvfaWCLDA"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "7237385895-g8tvejfc2gurod3kalmoaunh0ajhvj59.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

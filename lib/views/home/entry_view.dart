@@ -64,9 +64,13 @@ class _EntryViewState extends State<EntryView> {
             'web-context-cancelled' => 'Google sign-in was cancelled.',
             _ => error.message ?? 'Google sign-in could not be completed.',
           }
+        : error is FirebaseException
+        ? error.code == 'permission-denied'
+              ? 'Firebase denied access to this profile. Check the deployed Firestore rules for this account.'
+              : 'Firebase sign-in failed (${error.code}): ${error.message ?? 'Check the Firebase project and connection.'}'
         : error.toString().contains('cancel')
         ? 'Google sign-in was cancelled.'
-        : 'Google sign-in could not be completed. Check the Google OAuth setup.';
+        : 'Google sign-in failed (${error.runtimeType}): $error. Check that Google is enabled in Firebase Authentication and the app signing SHA is registered.';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));

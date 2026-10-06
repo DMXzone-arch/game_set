@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/game.dart';
-import '../../services/game_repository.dart';
+import 'admin_repository.dart';
 
 class AdminGamesView extends StatefulWidget {
   const AdminGamesView({super.key});
@@ -11,7 +11,7 @@ class AdminGamesView extends StatefulWidget {
 }
 
 class _AdminGamesViewState extends State<AdminGamesView> {
-  final GameRepository _repository = GameRepository();
+  final AdminRepository _repository = AdminRepository();
   late Future<List<Game>> _gamesFuture;
 
   @override
@@ -164,7 +164,7 @@ class AdminGameEditorView extends StatefulWidget {
 
 class _AdminGameEditorViewState extends State<AdminGameEditorView> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final GameRepository _repository = GameRepository();
+  final AdminRepository _repository = AdminRepository();
   late final Map<String, TextEditingController> _fields;
   late final Map<String, TextEditingController> _imageFields;
   bool _isSaving = false;

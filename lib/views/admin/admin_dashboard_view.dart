@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../services/admin_auth_service.dart';
-import '../../services/game_repository.dart';
+import 'admin_auth_service.dart';
+import 'admin_repository.dart';
 import 'admin_categories_view.dart';
 import 'admin_downloads_view.dart';
 import 'admin_games_view.dart';
@@ -17,7 +17,7 @@ class AdminDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final GameRepository repository = GameRepository();
+    final AdminRepository repository = AdminRepository();
 
     return Scaffold(
       backgroundColor: _background,
@@ -161,7 +161,7 @@ class AdminDashboardView extends StatelessWidget {
 class _AdminOverview extends StatelessWidget {
   const _AdminOverview({required this.repository});
 
-  final GameRepository repository;
+  final AdminRepository repository;
 
   @override
   Widget build(BuildContext context) {

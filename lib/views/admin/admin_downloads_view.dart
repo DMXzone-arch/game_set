@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../services/game_repository.dart';
+import 'admin_repository.dart';
 
 class AdminDownloadsView extends StatefulWidget {
   const AdminDownloadsView({super.key});
@@ -10,7 +10,7 @@ class AdminDownloadsView extends StatefulWidget {
 }
 
 class _AdminDownloadsViewState extends State<AdminDownloadsView> {
-  final GameRepository _repository = GameRepository();
+  final AdminRepository _repository = AdminRepository();
   late Future<List<AdminDownloadEntry>> _downloadsFuture;
 
   @override

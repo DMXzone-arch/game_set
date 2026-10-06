@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -15,16 +17,50 @@ class WishlistView extends StatefulWidget {
 
 class _WishlistViewState extends State<WishlistView> {
   final WishlistService _wishlist = WishlistService();
-  late Future<List<Game>> _games;
+  StreamSubscription<User?>? _authSubscription;
+  Future<List<Game>> _games = Future<List<Game>>.value(const []);
+  String? _activeUid;
 
   @override
   void initState() {
     super.initState();
+    _activeUid = _currentUid;
     _games = _wishlist.fetchGames();
+    // Reload when the account changes so one user's wishlist is never shown
+    // to another (or to a signed-out visitor).
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((
+      User? user,
+    ) {
+      final String? nextUid = user != null && !user.isAnonymous
+          ? user.uid
+          : null;
+      if (nextUid == _activeUid) return;
+      if (!mounted) return;
+      setState(() {
+        _activeUid = nextUid;
+        _games = _wishlist.fetchGames();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  String? get _currentUid {
+    final User? user = FirebaseAuth.instance.currentUser;
+    return user != null && !user.isAnonymous ? user.uid : null;
   }
 
   void _reload() {
-    if (mounted) setState(() => _games = _wishlist.fetchGames());
+    if (mounted) {
+      setState(() {
+        _activeUid = _currentUid;
+        _games = _wishlist.fetchGames();
+      });
+    }
   }
 
   Future<void> _openLogin() async {
@@ -36,8 +72,7 @@ class _WishlistViewState extends State<WishlistView> {
 
   @override
   Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
-    final bool hasAccount = user != null && !user.isAnonymous;
+    final bool hasAccount = _currentUid != null;
     return Scaffold(
       backgroundColor: const Color(0xFF071426),
       body: SafeArea(

@@ -26,6 +26,11 @@ class _LoginViewState extends State<LoginView> {
   bool _hidePassword = true;
   late int _avatarId;
 
+  /// Inline validation messages, cleared as the user types.
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+
   @override
   void initState() {
     super.initState();
@@ -41,14 +46,8 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _submit() async {
-    if (_creatingAccount && _name.text.trim().isEmpty) {
-      _showMessage('Enter your name to create an account.');
-      return;
-    }
-    if (_email.text.trim().isEmpty || _password.text.isEmpty) {
-      _showMessage('Enter your email and password.');
-      return;
-    }
+    final bool valid = _validate();
+    if (!valid) return;
 
     setState(() => _working = true);
     try {
@@ -71,6 +70,53 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  /// Validates every visible field and paints messages inline.
+  /// Returns true when the form may be submitted.
+  bool _validate() {
+    final String email = _email.text.trim();
+    final String password = _password.text;
+
+    final String? nameError = _creatingAccount
+        ? (_name.text.trim().isEmpty
+              ? 'Enter a display name.'
+              : _name.text.trim().length > kMaxDisplayNameLength
+              ? 'Use at most $kMaxDisplayNameLength characters.'
+              : null)
+        : null;
+
+    final String? emailError = email.isEmpty
+        ? 'Enter your email address.'
+        : !_looksLikeEmail(email)
+        ? 'That does not look like an email address.'
+        : null;
+
+    final String? passwordError = password.isEmpty
+        ? 'Enter a password.'
+        : (_creatingAccount && password.length < 6)
+        ? 'Use at least 6 characters.'
+        : null;
+
+    setState(() {
+      _nameError = nameError;
+      _emailError = emailError;
+      _passwordError = passwordError;
+    });
+    return nameError == null && emailError == null && passwordError == null;
+  }
+
+  static bool _looksLikeEmail(String value) =>
+      RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+
+  /// Switches between Log in and Create account, clearing stale errors.
+  void _setCreatingAccount({required bool creating}) {
+    setState(() {
+      _creatingAccount = creating;
+      _nameError = null;
+      _emailError = null;
+      _passwordError = null;
+    });
+  }
+
   Future<void> _signInWithGoogle() async {
     setState(() => _working = true);
     try {
@@ -79,7 +125,7 @@ class _LoginViewState extends State<LoginView> {
       await _guestMode.clearGuestChoice();
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
-      if (mounted) _showMessage(_errorMessage(error));
+      if (mounted) _showMessage(_googleErrorMessage(error));
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -114,7 +160,23 @@ class _LoginViewState extends State<LoginView> {
         _ => error.message ?? 'Could not access your account. Try again.',
       };
     }
-    return 'Could not save your profile. Check your connection and try again.';
+    if (error is FirebaseException) {
+      if (error.code == 'permission-denied') {
+        return 'Firebase denied access to this profile. Check the deployed Firestore rules for this account.';
+      }
+      return 'Firebase could not save the profile (${error.code}). ${error.message ?? 'Check the Firebase project and connection.'}';
+    }
+    return 'Could not complete the account request (${error.runtimeType}): $error';
+  }
+
+  String _googleErrorMessage(Object error) {
+    if (error is FirebaseAuthException || error is FirebaseException) {
+      return _errorMessage(error);
+    }
+    if (error.toString().toLowerCase().contains('cancel')) {
+      return 'Google sign-in was cancelled.';
+    }
+    return 'Google sign-in failed (${error.runtimeType}): $error. Check that Google is enabled in Firebase Authentication and the app signing SHA is registered.';
   }
 
   void _showMessage(String message) {
@@ -222,6 +284,8 @@ class _LoginViewState extends State<LoginView> {
                             'Display name',
                             Icons.person_outline_rounded,
                             textCapitalization: TextCapitalization.words,
+                            errorText: _nameError,
+                            onChanged: (_) => setState(() => _nameError = null),
                           ),
                         ],
                         SizedBox(height: _creatingAccount ? 12 : 26),
@@ -230,6 +294,8 @@ class _LoginViewState extends State<LoginView> {
                           'Email',
                           Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
+                          errorText: _emailError,
+                          onChanged: (_) => setState(() => _emailError = null),
                         ),
                         const SizedBox(height: 12),
                         _input(
@@ -237,6 +303,9 @@ class _LoginViewState extends State<LoginView> {
                           'Password',
                           Icons.lock_outline_rounded,
                           obscureText: _hidePassword,
+                          errorText: _passwordError,
+                          onChanged: (_) =>
+                              setState(() => _passwordError = null),
                           suffix: IconButton(
                             tooltip: _hidePassword
                                 ? 'Show password'
@@ -271,6 +340,16 @@ class _LoginViewState extends State<LoginView> {
                           ),
                           const SizedBox(height: 12),
                           _avatarChoices(),
+                          const SizedBox(height: 10),
+                          Center(
+                            child: Text(
+                              _selectedIconLabel,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: .55),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
                         ],
                         const SizedBox(height: 20),
                         SizedBox(
@@ -295,14 +374,22 @@ class _LoginViewState extends State<LoginView> {
                           child: TextButton(
                             onPressed: _working
                                 ? null
-                                : () => setState(
-                                    () => _creatingAccount = !_creatingAccount,
+                                : () => _setCreatingAccount(
+                                    creating: !_creatingAccount,
                                   ),
                             child: Text(
                               _creatingAccount
                                   ? 'Already have an account? Log in'
                                   : 'New to GameSet? Create an account',
                             ),
+                          ),
+                        ),
+                        Text(
+                          'Your email and password work here — no Google account needed.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: .35),
+                            fontSize: 11.5,
                           ),
                         ),
                       ],
@@ -317,12 +404,25 @@ class _LoginViewState extends State<LoginView> {
     ),
   );
 
+  static const List<String> _iconNames = [
+    'Controller',
+    'Rocket',
+    'Robot',
+    'Bolt',
+    'Shield',
+  ];
+
+  String get _selectedIconLabel =>
+      'Selected icon: ${_iconNames[_avatarId.clamp(0, 4)]}';
+
   Widget _avatarChoices() => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: List<Widget>.generate(
       5,
       (index) => GestureDetector(
-        onTap: () => setState(() => _avatarId = index),
+        onTap: () => setState(() {
+          _avatarId = index;
+        }),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(3),
@@ -348,12 +448,15 @@ class _LoginViewState extends State<LoginView> {
     TextCapitalization textCapitalization = TextCapitalization.none,
     Widget? suffix,
     ValueChanged<String>? onSubmitted,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) => TextField(
     controller: controller,
     obscureText: obscureText,
     keyboardType: keyboardType,
     textCapitalization: textCapitalization,
     onSubmitted: onSubmitted,
+    onChanged: onChanged,
     autofillHints: label == 'Email'
         ? const [AutofillHints.email]
         : label == 'Password'
@@ -368,6 +471,8 @@ class _LoginViewState extends State<LoginView> {
       labelText: label,
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
+      errorText: errorText,
+      errorStyle: const TextStyle(color: Colors.amberAccent, fontSize: 11.5),
       filled: true,
       fillColor: Colors.white.withValues(alpha: .055),
       border: OutlineInputBorder(

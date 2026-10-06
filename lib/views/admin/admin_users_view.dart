@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../services/user_profile_service.dart';
+import 'admin_user_service.dart';
 import '../../widgets/generated_avatar.dart';
 
 class AdminUsersView extends StatefulWidget {

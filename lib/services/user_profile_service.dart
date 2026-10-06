@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+/// Firestore rejects display names longer than this on write.
+const int kMaxDisplayNameLength = 40;
+
 class UserProfileService {
   UserProfileService({FirebaseAuth? auth, FirebaseFirestore? firestore})
     : _auth = auth ?? FirebaseAuth.instance,
@@ -127,13 +130,84 @@ class UserProfileService {
     required int avatarId,
   }) async {
     final User? user = _auth.currentUser;
-    if (user == null) return;
-    await user.updateDisplayName(displayName.trim());
-    await _firestore.collection('users').doc(user.uid).set({
-      'displayName': displayName.trim(),
-      'avatarId': avatarId.clamp(0, 4).toInt(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    if (user == null) {
+      throw const ProfileUpdateRequiresSignInException();
+    }
+
+    final String trimmedName = displayName.trim();
+    if (trimmedName.isEmpty) {
+      throw const InvalidDisplayNameException('Enter a display name.');
+    }
+    if (trimmedName.length > kMaxDisplayNameLength) {
+      throw const InvalidDisplayNameException(
+        'Display names can be at most 40 characters.',
+      );
+    }
+
+    // Firestore first: it is the source of truth for the profile screen. If the
+    // Firebase Auth rename then fails, the catalog is still consistent and only
+    // the auth-side display name lags behind, which is not shown to the user.
+    final DocumentReference<Map<String, dynamic>> profile = _firestore
+        .collection('users')
+        .doc(user.uid);
+
+    // A profile document may not exist yet (for example an account created
+    // before the profile write landed). `set` with merge then performs a
+    // *create*, and the rules only allow a create that carries every required
+    // field. Writing the full document keeps both cases working.
+    // TEMP DEBUG
+    final DocumentSnapshot<Map<String, dynamic>> probe = await profile.get();
+    // ignore: avoid_print
+    print('GSDEBUG exists=${probe.exists} data=${probe.data()}');
+
+    final bool exists = probe.exists;
+    if (exists) {
+      await profile.set({
+        'displayName': trimmedName,
+        'avatarId': avatarId.clamp(0, 4).toInt(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } else {
+      await profile.set({
+        'displayName': trimmedName,
+        'email': user.email,
+        'avatarId': avatarId.clamp(0, 4).toInt(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    try {
+      await user.updateDisplayName(trimmedName);
+    } catch (_) {
+      // The profile itself saved successfully; only the auth mirror is stale.
+    }
+  }
+
+  /// The authoritative email for the signed-in account.
+  ///
+  /// Email is owned by Firebase Auth and is immutable in this app's data model:
+  /// `firestore.rules` does not allow `email` in a profile update. Reading it
+  /// from Auth keeps the UI correct even if a profile document is stale.
+  Future<String?> fetchAccountEmail() async {
+    final User? user = _auth.currentUser;
+    return user?.email;
+  }
+
+  Future<bool> isEmailVerified() async {
+    final User? user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return user.emailVerified;
+  }
+
+  Future<void> sendEmailVerification() async {
+    final User? user = _auth.currentUser;
+    if (user == null) {
+      throw const ProfileUpdateRequiresSignInException();
+    }
+    if (user.emailVerified) return;
+    await user.sendEmailVerification();
   }
 
   Future<Map<String, dynamic>?> fetchProfile(String uid) async {
@@ -147,57 +221,18 @@ class UserProfileService {
   Future<void> signOut() => _auth.signOut();
 }
 
-class AdminUserRecord {
-  const AdminUserRecord({
-    required this.id,
-    required this.email,
-    required this.displayName,
-    required this.avatarId,
-    required this.role,
-    required this.createdAt,
-  });
+class ProfileUpdateRequiresSignInException implements Exception {
+  const ProfileUpdateRequiresSignInException();
 
-  final String id;
-  final String email;
-  final String displayName;
-  final int avatarId;
-  final String role;
-  final DateTime? createdAt;
-
-  factory AdminUserRecord.fromFirestore(String id, Map<String, dynamic> data) {
-    final Object? timestamp = data['createdAt'];
-    return AdminUserRecord(
-      id: id,
-      email: data['email'] is String ? data['email'] as String : '',
-      displayName: data['displayName'] is String
-          ? data['displayName'] as String
-          : '',
-      avatarId: data['avatarId'] is num
-          ? (data['avatarId'] as num).toInt().clamp(0, 4).toInt()
-          : 0,
-      role: data['role'] is String ? data['role'] as String : 'user',
-      createdAt: timestamp is Timestamp ? timestamp.toDate() : null,
-    );
-  }
+  @override
+  String toString() => 'No signed-in account can save this profile.';
 }
 
-Future<List<AdminUserRecord>> fetchAdminUserRecords({
-  FirebaseFirestore? firestore,
-}) async {
-  final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await (firestore ?? FirebaseFirestore.instance).collection('users').get();
-  final List<AdminUserRecord> users = snapshot.docs
-      .map(
-        (document) =>
-            AdminUserRecord.fromFirestore(document.id, document.data()),
-      )
-      .toList();
-  users.sort((first, second) {
-    final DateTime firstDate =
-        first.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    final DateTime secondDate =
-        second.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    return secondDate.compareTo(firstDate);
-  });
-  return users;
+class InvalidDisplayNameException implements Exception {
+  const InvalidDisplayNameException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

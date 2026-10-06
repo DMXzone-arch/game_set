@@ -34,7 +34,7 @@ void main() {
     ]);
   });
 
-  test('keeps fixture games visible when Firestore is unavailable', () async {
+  test('reports an error when the catalog cannot be loaded at all', () async {
     final GameViewModel viewModel = GameViewModel(
       repository: _UnavailableGameRepository(),
     );
@@ -42,11 +42,56 @@ void main() {
 
     await viewModel.loadGames();
 
-    expect(viewModel.hasError, isFalse);
-    expect(viewModel.games.map((game) => game.name), contains('FIFA 23'));
-    expect(viewModel.games.map((game) => game.name), contains('Tekken 7'));
-    expect(viewModel.categories, contains('Sports'));
+    // With no data loaded there is nothing to fall back on, so the failure
+    // must be surfaced rather than silently showing an empty catalog.
+    expect(viewModel.hasError, isTrue);
+    expect(viewModel.errorMessage, isNotNull);
+    expect(viewModel.games, isEmpty);
   });
+
+  test('keeps existing games when a later refresh fails', () async {
+    final _FlakyGameRepository repository = _FlakyGameRepository();
+    final GameViewModel viewModel = GameViewModel(repository: repository);
+    addTearDown(viewModel.dispose);
+
+    await viewModel.loadGames();
+    expect(viewModel.games.map((Game game) => game.name), ['Tekken 7']);
+    expect(viewModel.hasError, isFalse);
+
+    repository.failNextLoad = true;
+    await viewModel.loadGames();
+
+    // Already-loaded games stay visible during a transient outage.
+    expect(viewModel.hasError, isFalse);
+    expect(viewModel.games.map((Game game) => game.name), ['Tekken 7']);
+  });
+}
+
+/// Fails on demand so a refresh can be tested after a successful load.
+class _FlakyGameRepository extends GameRepository {
+  bool failNextLoad = false;
+
+  @override
+  Future<List<Game>> fetchGames() async {
+    if (failNextLoad) throw StateError('Firestore unavailable');
+    return [_game('tekken-7', 'Tekken 7')];
+  }
+
+  @override
+  Future<List<String>> fetchCategories() async => ['Sports'];
+
+  Game _game(String id, String name) => Game(
+    id: id,
+    name: name,
+    category: 'Sports',
+    icon: '',
+    screenshot1: '',
+    screenshot2: '',
+    description: '',
+    version: '1',
+    size: '1 GB',
+    downloadLink: 'https://example.com/$id',
+  );
 }
 
 class _PopularGamesRepository extends GameRepository {
