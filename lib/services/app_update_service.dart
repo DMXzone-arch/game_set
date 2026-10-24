@@ -29,6 +29,9 @@ class AppUpdateService {
       throw StateError('Could not read the installed app version.');
     }
     final int installedBuild = (installed['buildNumber'] as num).toInt();
+    final String installedVersion = installed['version'] is String
+        ? installed['version'] as String
+        : '';
 
     final DocumentSnapshot<Map<String, dynamic>> release = await _firestore
         .collection('app_updates')
@@ -38,21 +41,30 @@ class AppUpdateService {
 
     final Map<String, dynamic> data = release.data()!;
     final Object? publishedBuild = data['buildNumber'];
+    final String publishedVersion = data['version'] is String
+        ? (data['version'] as String).trim()
+        : '';
     final String apkUrl = data['apkUrl'] is String
         ? (data['apkUrl'] as String).trim()
         : '';
     final Uri? uri = Uri.tryParse(apkUrl);
-    if (publishedBuild is! num ||
-        publishedBuild <= installedBuild ||
-        uri == null ||
-        uri.scheme != 'https' ||
-        uri.host.isEmpty) {
+
+    // A published release reaches "Check for Updates" when it is a higher
+    // build than the installed app, or when its release label differs from the
+    // installed version name — admin uploads must surface here even if the
+    // release counter lags the version code baked into installed builds.
+    final bool newerBuild =
+        publishedBuild is num && publishedBuild > installedBuild;
+    final bool newerVersion =
+        publishedVersion.isNotEmpty && publishedVersion != installedVersion;
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
       return null;
     }
+    if (!newerBuild && !newerVersion) return null;
 
     return AppUpdateInfo(
-      version: data['version'] is String ? data['version'] as String : '',
-      buildNumber: publishedBuild.toInt(),
+      version: publishedVersion,
+      buildNumber: publishedBuild is num ? publishedBuild.toInt() : 0,
       apkUrl: apkUrl,
       releaseNotes: data['releaseNotes'] is String
           ? data['releaseNotes'] as String
