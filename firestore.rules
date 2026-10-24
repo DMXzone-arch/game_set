@@ -48,6 +48,21 @@ service cloud.firestore {
     match /games/{gameId} {
       allow read: if isAdmin() || resource.data.isPublished == true;
       allow create, update, delete: if isAdmin();
+
+      match /feedback/{userId} {
+        allow read: if get(/databases/$(database)/documents/games/$(gameId))
+          .data.isPublished == true;
+        allow create, update: if signedIn()
+          && request.auth.token.firebase.sign_in_provider != 'anonymous'
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['vote', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['vote', 'updatedAt'])
+          && request.resource.data.vote in ['works', 'doesNotWork']
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if signedIn()
+          && request.auth.token.firebase.sign_in_provider != 'anonymous'
+          && request.auth.uid == userId;
+      }
     }
 
     match /categories/{categoryId} {
@@ -71,6 +86,32 @@ service cloud.firestore {
       allow update: if request.resource.data.keys().hasOnly(['count'])
         && request.resource.data.count == resource.data.count + 1
         && get(/databases/$(database)/documents/games/$(gameId)).data.isPublished == true;
+      allow delete: if isAdmin();
+    }
+
+    match /app_updates/{platform} {
+      allow get: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // The consumer app reports the build it is running so the admin app can
+    // publish a build number above what users actually have installed.
+    match /app_versions/{platform} {
+      allow get: if isAdmin();
+      allow create, update: if request.resource.data.keys().hasOnly([
+          'lastSeenBuild', 'version', 'updatedAt'
+        ])
+        && request.resource.data.lastSeenBuild is int
+        && request.resource.data.lastSeenBuild >= 0
+        && request.resource.data.version is string
+        && request.resource.data.updatedAt is timestamp;
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
   }

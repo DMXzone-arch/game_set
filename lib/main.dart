@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/firebase_status.dart';
 import 'core/theme/app_theme.dart';
+import 'services/app_update_service.dart';
+import 'services/notification_service.dart';
 import 'views/home/splash_view.dart';
 
 Future<void> main() async {
@@ -50,6 +54,21 @@ Future<void> main() async {
     FirebaseStatus.initializationError = error.toString();
     debugPrint('Firebase initialization failed: $error');
   }
+  try {
+    await NotificationService().initialize();
+  } catch (error) {
+    debugPrint('Notification init failed: $error');
+  }
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    // Fire and forget: publishing the installed build keeps the admin app
+    // aware of what users actually run, without delaying startup.
+    unawaited(
+      AppUpdateService().reportInstalledBuild().catchError((Object error) {
+        debugPrint('Installed build report failed: $error');
+        return null;
+      }),
+    );
+  }
   runApp(const GameSetApp());
 }
 
@@ -64,7 +83,31 @@ class GameSetApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
-      home: const SplashView(),
+      home: FirebaseStatus.initializationError == null
+          ? const SplashView()
+          : FirebaseSetupError(message: FirebaseStatus.initializationError!),
+    );
+  }
+}
+
+class FirebaseSetupError extends StatelessWidget {
+  const FirebaseSetupError({required this.message, super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: SelectableText(
+            'Firebase could not start. Check the platform setup and restart.\n\n'
+            '$message',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
     );
   }
 }
