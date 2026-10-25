@@ -50,13 +50,15 @@ class AppUpdateService {
     final Uri? uri = Uri.tryParse(apkUrl);
 
     // A published release reaches "Check for Updates" when it is a higher
-    // build than the installed app, or when its release label differs from the
-    // installed version name — admin uploads must surface here even if the
-    // release counter lags the version code baked into installed builds.
+    // build than the installed app, or when its release label is genuinely
+    // newer than the installed version name — admin uploads must surface here
+    // even if the release counter lags the version code baked into installed
+    // builds. Labels compare numerically so "1.2" and "1.2.0" count as the
+    // same release rather than as a permanently available update.
     final bool newerBuild =
         publishedBuild is num && publishedBuild > installedBuild;
     final bool newerVersion =
-        publishedVersion.isNotEmpty && publishedVersion != installedVersion;
+        _isNewerVersion(publishedVersion, installedVersion) ?? false;
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
       return null;
     }
@@ -92,5 +94,37 @@ class AppUpdateService {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
     return buildNumber;
+  }
+
+  /// Compares dotted release labels numerically: `1.2` equals `1.2.0`, `1.3`
+  /// beats `1.2.9`. Returns null when either side is missing or not numeric,
+  /// leaving the build-number check to decide on its own.
+  static bool? _isNewerVersion(String published, String installed) {
+    final List<int>? expected = _parseVersion(published);
+    final List<int>? current = _parseVersion(installed);
+    if (expected == null || current == null) return null;
+    final int length = expected.length > current.length
+        ? expected.length
+        : current.length;
+    for (int index = 0; index < length; index++) {
+      final int publishedPart = index < expected.length ? expected[index] : 0;
+      final int installedPart = index < current.length ? current[index] : 0;
+      if (publishedPart != installedPart) {
+        return publishedPart > installedPart;
+      }
+    }
+    return false;
+  }
+
+  static List<int>? _parseVersion(String value) {
+    final String trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    final List<int> parts = <int>[];
+    for (final String part in trimmed.split('.')) {
+      final int? number = int.tryParse(part);
+      if (number == null) return null;
+      parts.add(number);
+    }
+    return parts;
   }
 }

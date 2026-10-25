@@ -96,6 +96,8 @@ service cloud.firestore {
 
     // The consumer app reports the build it is running so the admin app can
     // publish a build number above what users actually have installed.
+    // Guests have no Firebase user, so the write stays unauthenticated; the
+    // ceiling keeps a spoofed value from steering the admin's publish gate.
     match /app_versions/{platform} {
       allow get: if isAdmin();
       allow create, update: if request.resource.data.keys().hasOnly([
@@ -103,6 +105,7 @@ service cloud.firestore {
         ])
         && request.resource.data.lastSeenBuild is int
         && request.resource.data.lastSeenBuild >= 0
+        && request.resource.data.lastSeenBuild <= 100000
         && request.resource.data.version is string
         && request.resource.data.updatedAt is timestamp;
       allow delete: if isAdmin();
