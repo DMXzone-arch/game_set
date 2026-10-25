@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class GameSearchBar extends StatelessWidget {
@@ -18,89 +16,50 @@ class GameSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+
+      // Search happens only when the user presses
+      // the Search button on the keyboard.
+      onSubmitted: onSubmitted,
+
+      textInputAction: TextInputAction.search,
+
+      style: const TextStyle(color: Colors.white, fontSize: 16),
+
+      decoration: InputDecoration(
+        hintText: 'Search games...',
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+
+        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF2196F3)),
+
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded, color: Colors.white70),
+              )
+            : null,
+
+        filled: true,
+
+        fillColor: Colors.white.withValues(alpha: 0.10),
+
+        contentPadding: const EdgeInsets.symmetric(vertical: 17, horizontal: 8),
+
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
         ),
-        child: TextField(
-          controller: controller,
-          focusNode: focusNode,
 
-          // Search happens only when the user presses
-          // the Search button on the keyboard.
-          onSubmitted: onSubmitted,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+        ),
 
-          textInputAction: TextInputAction.search,
-
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-          ),
-
-          decoration: InputDecoration(
-            hintText: 'Search games...',
-            hintStyle: TextStyle(
-              color: Colors.white.withValues(
-                alpha: 0.55,
-              ),
-            ),
-
-            prefixIcon: const Icon(
-              Icons.search_rounded,
-              color: Color(0xFF2196F3),
-            ),
-
-            suffixIcon: controller.text.isNotEmpty
-                ? IconButton(
-                    onPressed: onClear,
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: Colors.white70,
-                    ),
-                  )
-                : null,
-
-            filled: true,
-
-            fillColor: Colors.white.withValues(
-              alpha: 0.10,
-            ),
-
-            contentPadding:
-                const EdgeInsets.symmetric(
-              vertical: 17,
-              horizontal: 8,
-            ),
-
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: BorderSide(
-                color: Colors.white.withValues(
-                  alpha: 0.15,
-                ),
-              ),
-            ),
-
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: BorderSide(
-                color: Colors.white.withValues(
-                  alpha: 0.15,
-                ),
-              ),
-            ),
-
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(
-                color: Color(0xFF2196F3),
-                width: 1.5,
-              ),
-            ),
-          ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFF2196F3), width: 1.5),
         ),
       ),
     );

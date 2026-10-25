@@ -11,6 +11,9 @@ class WishlistService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
+  final Map<String, List<Game>> _gamesCache = {};
+  final Map<String, DateTime> _gamesCacheTime = {};
+
   User? get _registeredUser {
     final User? user = _auth.currentUser;
     return user != null && !user.isAnonymous ? user : null;
@@ -32,6 +35,11 @@ class WishlistService {
     final CollectionReference<Map<String, dynamic>>? wishlist = _wishlist;
     if (wishlist == null) throw const WishlistSignInRequiredException();
     if (game.id.isEmpty) return;
+    final String? uid = _registeredUser?.uid;
+    if (uid != null) {
+      _gamesCache.remove(uid);
+      _gamesCacheTime.remove(uid);
+    }
     final DocumentReference<Map<String, dynamic>> entry = wishlist.doc(game.id);
     if (saved) {
       await entry.set({
@@ -42,27 +50,25 @@ class WishlistService {
     }
   }
 
-  /// Loads the saved games newest-first and drops entries whose game is no
-/// longer published.
-///
-/// Wishlist entries are pruned from Firestore when they can no longer resolve,
-/// so an unpublished or deleted game does not leave a permanently broken entry
-/// behind that silently reappears later.
-Future<List<Game>> fetchGames() async {
+  /// Loads saved games newest-first and caches the result for this session.
+  Future<List<Game>> fetchGames() async {
     final CollectionReference<Map<String, dynamic>>? wishlist = _wishlist;
     if (wishlist == null) throw const WishlistSignInRequiredException();
+    final String uid = _registeredUser!.uid;
+    final List<Game>? cachedGames = _gamesCache[uid];
+    final DateTime? cachedAt = _gamesCacheTime[uid];
+    if (cachedGames != null &&
+        cachedAt != null &&
+        DateTime.now().difference(cachedAt) < const Duration(minutes: 1)) {
+      return cachedGames;
+    }
 
     final QuerySnapshot<Map<String, dynamic>> entries = await wishlist.get();
 
     final List<Game?> loadedGames = await Future.wait(
-      entries.docs.map((entry) => _loadPublishedGame(entry.id)),
+      entries.docs.map((entry) => _loadPublishedGame(wishlist, entry.id)),
     );
     final List<Game> games = loadedGames.whereType<Game>().toList();
-
-    // Drop entries whose game is no longer published, so they cannot resurface.
-    await Future.wait(
-      entries.docs.map((entry) => _pruneIfMissing(wishlist, entry.id)),
-    );
 
     // Newest saves first, matching the order the heart was tapped.
     final Map<String, DateTime?> addedAt = {};
@@ -79,56 +85,40 @@ Future<List<Game>> fetchGames() async {
       return b.compareTo(a);
     });
 
+    _gamesCache[uid] = games;
+    _gamesCacheTime[uid] = DateTime.now();
     return games;
   }
 
-  /// Removes a wishlist entry when its game is unpublished or deleted.
-  Future<void> _pruneIfMissing(
+  Future<Game?> _loadPublishedGame(
     CollectionReference<Map<String, dynamic>> wishlist,
     String gameId,
   ) async {
     try {
-      if (await _isGamePublished(gameId)) return;
-      await wishlist.doc(gameId).delete();
-    } catch (_) {
-      // Never fail the whole load because a single stale entry failed to prune.
-    }
-  }
-
-  Future<bool> _isGamePublished(String gameId) async {
-    try {
-      final DocumentSnapshot<Map<String, dynamic>> snapshot = await _firestore
-          .collection('games')
-          .doc(gameId)
-          .get();
-      return snapshot.exists && snapshot.data()?['isPublished'] != false;
-    } catch (_) {
-      // On a network error, keep the entry rather than deleting real data.
-      return true;
-    }
-  }
-
-  Future<Game?> _loadPublishedGame(String gameId) async {
-    try {
       final DocumentReference<Map<String, dynamic>> gameReference = _firestore
           .collection('games')
           .doc(gameId);
-      final DocumentSnapshot<Map<String, dynamic>> gameSnapshot =
-          await gameReference.get();
+      final List<DocumentSnapshot<Map<String, dynamic>>> snapshots =
+          await Future.wait([
+            gameReference.get(),
+            _firestore.collection('game_images').doc(gameId).get(),
+          ]);
+      final DocumentSnapshot<Map<String, dynamic>> gameSnapshot = snapshots[0];
       final Map<String, dynamic>? data = gameSnapshot.data();
       if (!gameSnapshot.exists ||
           data == null ||
           data['isPublished'] == false) {
+        try {
+          await wishlist.doc(gameId).delete();
+        } catch (_) {
+          // Keep the rest of the wishlist load working if pruning fails.
+        }
         return null;
       }
-      final DocumentSnapshot<Map<String, dynamic>> images = await _firestore
-          .collection('game_images')
-          .doc(gameId)
-          .get();
       return Game.fromFirestore(
         id: gameSnapshot.id,
         data: data,
-        images: images.data() ?? const {},
+        images: snapshots[1].data() ?? const {},
       );
     } catch (_) {
       // A game may have been unpublished or removed after it was saved.

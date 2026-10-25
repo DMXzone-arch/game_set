@@ -17,6 +17,8 @@ class UserProfileService {
   final FirebaseFirestore _firestore;
 
   static Future<void>? _googleSignInInitialization;
+  final Map<String, Map<String, dynamic>?> _profileCache = {};
+  final Map<String, DateTime> _profileCacheTime = {};
 
   User? get currentUser => _auth.currentUser;
   Stream<User?> authChanges() => _auth.authStateChanges();
@@ -155,11 +157,7 @@ class UserProfileService {
     // before the profile write landed). `set` with merge then performs a
     // *create*, and the rules only allow a create that carries every required
     // field. Writing the full document keeps both cases working.
-    // TEMP DEBUG
     final DocumentSnapshot<Map<String, dynamic>> probe = await profile.get();
-    // ignore: avoid_print
-    print('GSDEBUG exists=${probe.exists} data=${probe.data()}');
-
     final bool exists = probe.exists;
     if (exists) {
       await profile.set({
@@ -176,6 +174,12 @@ class UserProfileService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     }
+
+    // The write may create a document with server timestamps and required
+    // account fields; invalidate the partial cached view so the next read
+    // returns the complete Firestore document.
+    _profileCache.remove(user.uid);
+    _profileCacheTime.remove(user.uid);
 
     try {
       await user.updateDisplayName(trimmedName);
@@ -211,11 +215,20 @@ class UserProfileService {
   }
 
   Future<Map<String, dynamic>?> fetchProfile(String uid) async {
+    final DateTime? cachedAt = _profileCacheTime[uid];
+    if (_profileCache.containsKey(uid) &&
+        cachedAt != null &&
+        DateTime.now().difference(cachedAt) < const Duration(minutes: 1)) {
+      return _profileCache[uid];
+    }
     final DocumentSnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .get();
-    return snapshot.data();
+    final Map<String, dynamic>? profile = snapshot.data();
+    _profileCache[uid] = profile;
+    _profileCacheTime[uid] = DateTime.now();
+    return profile;
   }
 
   Future<void> signOut() => _auth.signOut();

@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 class ScreenshotViewer extends StatelessWidget {
   final String imagePath;
   final String heroTag;
+  final List<String>? galleryPaths;
+  final List<String>? galleryHeroTags;
+  final int initialPage;
 
   const ScreenshotViewer({
     super.key,
     required this.imagePath,
     required this.heroTag,
+    this.galleryPaths,
+    this.galleryHeroTags,
+    this.initialPage = 0,
   });
 
   void _openViewer(BuildContext context) {
@@ -22,7 +28,13 @@ class ScreenshotViewer extends StatelessWidget {
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 250),
         pageBuilder: (context, animation, secondaryAnimation) {
-          return _FullscreenScreenshot(imagePath: imagePath, heroTag: heroTag);
+          final paths = galleryPaths ?? [imagePath];
+          final tags = galleryHeroTags ?? [heroTag];
+          return _FullscreenScreenshot(
+            imagePaths: paths,
+            heroTags: tags,
+            initialPage: initialPage,
+          );
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
@@ -79,11 +91,31 @@ class ScreenshotViewer extends StatelessWidget {
   }
 }
 
-class _FullscreenScreenshot extends StatelessWidget {
-  final String imagePath;
-  final String heroTag;
+class _FullscreenScreenshot extends StatefulWidget {
+  final List<String> imagePaths;
+  final List<String> heroTags;
+  final int initialPage;
 
-  const _FullscreenScreenshot({required this.imagePath, required this.heroTag});
+  const _FullscreenScreenshot({
+    required this.imagePaths,
+    required this.heroTags,
+    required this.initialPage,
+  });
+
+  @override
+  State<_FullscreenScreenshot> createState() => _FullscreenScreenshotState();
+}
+
+class _FullscreenScreenshotState extends State<_FullscreenScreenshot> {
+  late final PageController _pageController = PageController(
+    initialPage: widget.initialPage,
+  );
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,36 +124,52 @@ class _FullscreenScreenshot extends StatelessWidget {
       body: SafeArea(
         child: Stack(
           children: [
-            Center(
-              child: Hero(
-                tag: heroTag,
-                child: InteractiveViewer(
-                  minScale: 1.0,
-                  maxScale: 4.0,
-                  child: _buildScreenshotImage(
-                    imagePath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Colors.white54,
-                            size: 60,
+              PageView.builder(
+                controller: _pageController,
+                itemCount: widget.imagePaths.length,
+                itemBuilder: (context, index) {
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                      Center(
+                        child: Hero(
+                          tag: widget.heroTags[index],
+                          child: InteractiveViewer(
+                            minScale: 1.0,
+                            maxScale: 4.0,
+                            child: _buildScreenshotImage(
+                              widget.imagePaths[index],
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: Colors.white54,
+                                      size: 60,
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'Screenshot unavailable',
+                                      style: TextStyle(color: Colors.white54),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ),
-                          SizedBox(height: 12),
-                          Text(
-                            'Screenshot unavailable',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
-            ),
 
             Positioned(
               top: 12,

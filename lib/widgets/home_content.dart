@@ -127,7 +127,7 @@ class _GameSection extends StatelessWidget {
             height: 245,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: const ClampingScrollPhysics(),
               itemCount: games.length,
               separatorBuilder: (_, index) => const SizedBox(width: 14),
               itemBuilder: (_, index) => SizedBox(

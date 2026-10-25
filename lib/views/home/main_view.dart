@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import 'games_view.dart';
@@ -23,26 +21,7 @@ class _MainViewState extends State<MainView> {
     return Scaffold(
       extendBody: true,
       backgroundColor: const Color(0xFF071426),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          final slideAnimation = Tween<Offset>(
-            begin: const Offset(0.025, 0),
-            end: Offset.zero,
-          ).animate(animation);
-
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: slideAnimation, child: child),
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey(selectedIndex),
-          child: _buildPage(selectedIndex),
-        ),
-      ),
+      body: _buildPage(selectedIndex),
       bottomNavigationBar: _buildNavigationBar(),
     );
   }
@@ -68,51 +47,48 @@ class _MainViewState extends State<MainView> {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            height: 70,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildNavigationItem(
-                    index: 0,
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    label: 'Home',
-                  ),
+        child: Container(
+          height: 70,
+          decoration: BoxDecoration(
+            color: const Color(0xE6182236),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildNavigationItem(
+                  index: 0,
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: 'Home',
                 ),
-                Expanded(
-                  child: _buildNavigationItem(
-                    index: 1,
-                    icon: Icons.sports_esports_outlined,
-                    selectedIcon: Icons.sports_esports,
-                    label: 'Games',
-                  ),
+              ),
+              Expanded(
+                child: _buildNavigationItem(
+                  index: 1,
+                  icon: Icons.sports_esports_outlined,
+                  selectedIcon: Icons.sports_esports,
+                  label: 'Games',
                 ),
-                Expanded(
-                  child: _buildNavigationItem(
-                    index: 2,
-                    icon: Icons.favorite_border_rounded,
-                    selectedIcon: Icons.favorite_rounded,
-                    label: 'Wishlist',
-                  ),
+              ),
+              Expanded(
+                child: _buildNavigationItem(
+                  index: 2,
+                  icon: Icons.favorite_border_rounded,
+                  selectedIcon: Icons.favorite_rounded,
+                  label: 'Wishlist',
                 ),
-                Expanded(
-                  child: _buildNavigationItem(
-                    index: 3,
-                    icon: Icons.person_outline_rounded,
-                    selectedIcon: Icons.person_rounded,
-                    label: 'Profile',
-                  ),
+              ),
+              Expanded(
+                child: _buildNavigationItem(
+                  index: 3,
+                  icon: Icons.person_outline_rounded,
+                  selectedIcon: Icons.person_rounded,
+                  label: 'Profile',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

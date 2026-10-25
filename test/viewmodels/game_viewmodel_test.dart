@@ -5,12 +5,12 @@ import 'package:game_set/viewmodels/game_viewmodel.dart';
 
 class _UnavailableGameRepository extends GameRepository {
   @override
-  Future<List<Game>> fetchGames() async {
+  Future<List<Game>> fetchGames({bool forceRefresh = false}) async {
     throw StateError('Firestore unavailable');
   }
 
   @override
-  Future<List<String>> fetchCategories() async {
+  Future<List<String>> fetchCategories({bool forceRefresh = false}) async {
     throw StateError('Firestore unavailable');
   }
 }
@@ -72,13 +72,14 @@ class _FlakyGameRepository extends GameRepository {
   bool failNextLoad = false;
 
   @override
-  Future<List<Game>> fetchGames() async {
+  Future<List<Game>> fetchGames({bool forceRefresh = false}) async {
     if (failNextLoad) throw StateError('Firestore unavailable');
     return [_game('tekken-7', 'Tekken 7')];
   }
 
   @override
-  Future<List<String>> fetchCategories() async => ['Sports'];
+  Future<List<String>> fetchCategories({bool forceRefresh = false}) async =>
+      ['Sports'];
 
   Game _game(String id, String name) => Game(
     id: id,
@@ -100,14 +101,15 @@ class _PopularGamesRepository extends GameRepository {
   final Map<String, int> downloadCounts;
 
   @override
-  Future<List<Game>> fetchGames() async => [
+  Future<List<Game>> fetchGames({bool forceRefresh = false}) async => [
     _game('new-game', 'New game'),
     _game('older-game', 'Older game'),
     _game('popular-game', 'Popular game'),
   ];
 
   @override
-  Future<List<String>> fetchCategories() async => ['Action'];
+  Future<List<String>> fetchCategories({bool forceRefresh = false}) async =>
+      ['Action'];
 
   @override
   Future<Map<String, int>> fetchDownloadCounts(List<String> gameIds) async =>

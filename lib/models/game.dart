@@ -25,6 +25,44 @@ class Game {
     this.isPublished = true,
   });
 
+  factory Game.fromCatalogFirestore({
+    required String id,
+    required Map<String, dynamic> data,
+  }) {
+    String value(String key) {
+      final Object? field = data[key];
+      return field is String ? field : '';
+    }
+
+    return Game(
+      id: id,
+      name: value('name'),
+      category: value('category'),
+      icon: value('icon'),
+      screenshot1: '',
+      screenshot2: '',
+      description: '',
+      version: '',
+      size: '',
+      downloadLink: value('downloadLink'),
+      isPublished: data['isPublished'] != false,
+    );
+  }
+
+  Game copyWith({String? icon}) => Game(
+    id: id,
+    name: name,
+    category: category,
+    icon: icon ?? this.icon,
+    screenshot1: screenshot1,
+    screenshot2: screenshot2,
+    description: description,
+    version: version,
+    size: size,
+    downloadLink: downloadLink,
+    isPublished: isPublished,
+  );
+
   factory Game.fromFirestore({
     required String id,
     required Map<String, dynamic> data,

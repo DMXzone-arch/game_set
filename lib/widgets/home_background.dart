@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class HomeBackground extends StatelessWidget {
@@ -33,12 +31,6 @@ class HomeBackground extends StatelessWidget {
           left: -100,
           child: _Glow(size: 280, color: Colors.cyan),
         ),
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
       ],
     );
   }
@@ -57,7 +49,14 @@ class _Glow extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.22),
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.20),
+            color.withValues(alpha: 0.07),
+            color.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.55, 1],
+        ),
       ),
     );
   }

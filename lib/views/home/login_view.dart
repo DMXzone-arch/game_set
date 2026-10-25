@@ -62,7 +62,7 @@ class _LoginViewState extends State<LoginView> {
         await _profiles.signIn(email: _email.text, password: _password.text);
       }
       await _guestMode.clearGuestChoice();
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) _showMessage(_errorMessage(error));
     } finally {
@@ -117,20 +117,6 @@ class _LoginViewState extends State<LoginView> {
     });
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _working = true);
-    try {
-      final UserCredential? credential = await _profiles.signInWithGoogle();
-      if (credential == null) return;
-      await _guestMode.clearGuestChoice();
-      if (mounted) Navigator.of(context).pop();
-    } catch (error) {
-      if (mounted) _showMessage(_googleErrorMessage(error));
-    } finally {
-      if (mounted) setState(() => _working = false);
-    }
-  }
-
   Future<void> _resetPassword() async {
     if (_email.text.trim().isEmpty) {
       _showMessage('Enter your email first, then choose “Forgot password?”.');
@@ -167,16 +153,6 @@ class _LoginViewState extends State<LoginView> {
       return 'Firebase could not save the profile (${error.code}). ${error.message ?? 'Check the Firebase project and connection.'}';
     }
     return 'Could not complete the account request (${error.runtimeType}): $error';
-  }
-
-  String _googleErrorMessage(Object error) {
-    if (error is FirebaseAuthException || error is FirebaseException) {
-      return _errorMessage(error);
-    }
-    if (error.toString().toLowerCase().contains('cancel')) {
-      return 'Google sign-in was cancelled.';
-    }
-    return 'Google sign-in failed (${error.runtimeType}): $error. Check that Google is enabled in Firebase Authentication and the app signing SHA is registered.';
   }
 
   void _showMessage(String message) {
@@ -244,39 +220,6 @@ class _LoginViewState extends State<LoginView> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: OutlinedButton.icon(
-                            onPressed: _working ? null : _signInWithGoogle,
-                            icon: const Text(
-                              'G',
-                              style: TextStyle(
-                                color: Color(0xFF4285F4),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            label: const Text('Continue with Google'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.white24)),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'OR',
-                                style: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Colors.white24)),
-                          ],
-                        ),
                         if (_creatingAccount) ...[
                           const SizedBox(height: 16),
                           _input(
@@ -382,14 +325,6 @@ class _LoginViewState extends State<LoginView> {
                                   ? 'Already have an account? Log in'
                                   : 'New to GameSet? Create an account',
                             ),
-                          ),
-                        ),
-                        Text(
-                          'Your email and password work here — no Google account needed.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: .35),
-                            fontSize: 11.5,
                           ),
                         ),
                       ],

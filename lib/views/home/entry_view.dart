@@ -1,10 +1,8 @@
 import 'dart:ui';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/guest_mode_service.dart';
-import '../../services/user_profile_service.dart';
 import 'login_view.dart';
 import 'main_view.dart';
 
@@ -16,64 +14,24 @@ class EntryView extends StatefulWidget {
 }
 
 class _EntryViewState extends State<EntryView> {
-  final UserProfileService _profiles = UserProfileService();
   final GuestModeService _guestMode = GuestModeService();
-  bool _working = false;
 
   Future<void> _continueAsGuest() async {
     await _guestMode.continueAsGuest();
     if (mounted) _openApp();
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _working = true);
-    try {
-      final UserCredential? credential = await _profiles.signInWithGoogle();
-      if (credential == null || !mounted) return;
-      await _guestMode.clearGuestChoice();
-      if (mounted) _openApp();
-    } catch (error) {
-      if (mounted) _showError(error);
-    } finally {
-      if (mounted) setState(() => _working = false);
-    }
-  }
-
   Future<void> _openEmailLogin() async {
-    await Navigator.of(
-      context,
-    ).push<void>(MaterialPageRoute<void>(builder: (_) => const LoginView()));
-    if (!mounted) return;
-    if (FirebaseAuth.instance.currentUser != null) _openApp();
+    final bool? signedIn = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => const LoginView()),
+    );
+    if (signedIn == true && mounted) _openApp();
   }
 
   void _openApp() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const MainView()),
     );
-  }
-
-  void _showError(Object error) {
-    final String message = error is FirebaseAuthException
-        ? switch (error.code) {
-            'account-exists-with-different-credential' =>
-              'This email already has another sign-in method. Log in with that method first.',
-            'network-request-failed' =>
-              'Check your internet connection and try again.',
-            'popup-closed-by-user' ||
-            'web-context-cancelled' => 'Google sign-in was cancelled.',
-            _ => error.message ?? 'Google sign-in could not be completed.',
-          }
-        : error is FirebaseException
-        ? error.code == 'permission-denied'
-              ? 'Firebase denied access to this profile. Check the deployed Firestore rules for this account.'
-              : 'Firebase sign-in failed (${error.code}): ${error.message ?? 'Check the Firebase project and connection.'}'
-        : error.toString().contains('cancel')
-        ? 'Google sign-in was cancelled.'
-        : 'Google sign-in failed (${error.runtimeType}): $error. Check that Google is enabled in Firebase Authentication and the app signing SHA is registered.';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -138,38 +96,15 @@ class _EntryViewState extends State<EntryView> {
                           width: double.infinity,
                           height: 52,
                           child: FilledButton(
-                            onPressed: _working ? null : _signInWithGoogle,
+                            onPressed: _openEmailLogin,
                             style: FilledButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF1C2430),
+                              backgroundColor: const Color(0xFF2196F3),
+                              foregroundColor: Colors.white,
                             ),
-                            child: _working
-                                ? const SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'G',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF4285F4),
-                                        ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Text(
-                                        'Continue with Google',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            child: const Text(
+                              'Log in',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -177,7 +112,7 @@ class _EntryViewState extends State<EntryView> {
                           width: double.infinity,
                           height: 50,
                           child: OutlinedButton(
-                            onPressed: _working ? null : _continueAsGuest,
+                            onPressed: _continueAsGuest,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               side: BorderSide(
@@ -188,12 +123,6 @@ class _EntryViewState extends State<EntryView> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        TextButton(
-                          onPressed: _working ? null : _openEmailLogin,
-                          child: const Text(
-                            'Log in or create an account with email',
-                          ),
-                        ),
                         const SizedBox(height: 4),
                         const Text(
                           'A GameSet account is needed to save a wishlist.',

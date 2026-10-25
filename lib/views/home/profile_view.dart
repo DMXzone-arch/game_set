@@ -1,14 +1,17 @@
 import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/guest_mode_service.dart';
+import '../../services/app_update_service.dart';
 import '../../services/user_profile_service.dart';
 import '../../widgets/generated_avatar.dart';
+import '../about_view.dart';
 import 'entry_view.dart';
 import 'login_view.dart';
-import 'settings_view.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -19,6 +22,7 @@ class ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<ProfileView> {
   final UserProfileService _profiles = UserProfileService();
+  final AppUpdateService _appUpdates = AppUpdateService();
   final GuestModeService _guestMode = GuestModeService();
   final TextEditingController _name = TextEditingController();
   bool _working = false;
@@ -120,6 +124,89 @@ class _ProfileViewState extends State<ProfileView> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _checkForUpdates() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      _showMessage(
+        kIsWeb
+            ? 'GameSet web updates are published online. Refresh the page to load the latest features.'
+            : 'App update checks are currently available on Android only.',
+      );
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            SizedBox(width: 16),
+            Text(
+              'Checking for updates...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    bool loadingDialogOpen = true;
+    try {
+      final AppUpdateInfo? update = await _appUpdates.checkForAndroidUpdate();
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      loadingDialogOpen = false;
+      if (update == null) {
+        _showMessage('You are using the latest version of GameSet.');
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('GameSet ${update.version} is available'),
+          content: Text(
+            update.releaseNotes.trim().isEmpty
+                ? 'Download the latest GameSet app to get new features and improvements.'
+                : update.releaseNotes,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Later'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                final bool opened = await launchUrl(
+                  Uri.parse(update.apkUrl),
+                  mode: LaunchMode.externalApplication,
+                );
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+                if (!opened && mounted) {
+                  _showMessage('Could not open the update download link.');
+                }
+              },
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Download update'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      if (loadingDialogOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      _showMessage('Could not check app updates. Check your connection.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,32 +229,83 @@ class _ProfileViewState extends State<ProfileView> {
               builder: (context, snapshot) {
                 final User? user = snapshot.data;
                 return CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const ClampingScrollPhysics(),
                   slivers: [
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 26, 20, 18),
-                      sliver: SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Profile',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 30,
-                                fontWeight: FontWeight.bold,
+                    SliverAppBar(
+                      pinned: true,
+                      automaticallyImplyLeading: false,
+                      expandedHeight: 145,
+                      collapsedHeight: kToolbarHeight,
+                      backgroundColor: const Color(0xFF071426),
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 0,
+                      flexibleSpace: LayoutBuilder(
+                        builder: (context, constraints) {
+                          const double expandedHeight = 145;
+                          final double collapseProgress =
+                              ((expandedHeight - constraints.biggest.height) /
+                                      (expandedHeight - kToolbarHeight))
+                                  .clamp(0.0, 1.0);
+                          final double avatarSize = lerpDouble(
+                            66,
+                            36,
+                            collapseProgress,
+                          )!;
+                          final double left = lerpDouble(
+                            (constraints.maxWidth - 66) / 2,
+                            16,
+                            collapseProgress,
+                          )!;
+                          final double top = lerpDouble(
+                            12,
+                            10,
+                            collapseProgress,
+                          )!;
+
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Positioned(
+                                left: left,
+                                top: top,
+                                child: GeneratedAvatar(
+                                  avatarId: user == null ? 0 : _savedAvatarId,
+                                  size: avatarSize,
+                                ),
                               ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Your GameSet account and preferences',
-                              style: TextStyle(
-                                color: Colors.white60,
-                                fontSize: 14,
+                              Positioned(
+                                left: 20,
+                                bottom: 14,
+                                child: Opacity(
+                                  opacity: 1 - collapseProgress,
+                                  child: const Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Profile',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 3),
+                                      Text(
+                                        'Your GameSet account and preferences',
+                                        style: TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                     SliverPadding(
@@ -179,15 +317,61 @@ class _ProfileViewState extends State<ProfileView> {
                           else
                             _buildProfile(user),
                           const SizedBox(height: 22),
-                          _section('App settings', [
+                          _section('App', [
                             _tile(
-                              icon: Icons.tune_rounded,
-                              title: 'App settings',
-                              subtitle: 'About, support, and app information',
+                              icon: Icons.system_update_rounded,
+                              title: 'Check for Updates',
+                              subtitle: 'Check if a new version is available',
+                              onTap: _checkForUpdates,
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 72,
+                              endIndent: 16,
+                              color: Colors.white12,
+                            ),
+                            _tile(
+                              icon: Icons.info_outline_rounded,
+                              title: 'Version',
+                              subtitle: 'v1.0.0 (1)',
+                              onTap: () {},
+                            ),
+                          ]),
+                          const SizedBox(height: 20),
+                          _section('About', [
+                            _tile(
+                              icon: Icons.apps_rounded,
+                              title: 'About GameSet',
+                              subtitle: 'Learn more about GameSet',
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const SettingsView(),
+                                  builder: (_) => const AboutView(),
                                 ),
+                              ),
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 72,
+                              endIndent: 16,
+                              color: Colors.white12,
+                            ),
+                            _tile(
+                              icon: Icons.privacy_tip_outlined,
+                              title: 'Privacy Policy',
+                              subtitle: 'Read our privacy policy',
+                              onTap: () => _showMessage(
+                                'Privacy Policy will be available soon.',
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 20),
+                          _section('Support', [
+                            _tile(
+                              icon: Icons.support_agent_rounded,
+                              title: 'Contact / Help',
+                              subtitle: 'Get help with GameSet',
+                              onTap: () => _showMessage(
+                                'Support will be available soon.',
                               ),
                             ),
                           ]),

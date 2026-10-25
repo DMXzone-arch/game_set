@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/notification_service.dart';
 import '../../widgets/search_bar.dart';
 import '../../viewmodels/home_viewmodel.dart';
 import '../../widgets/category_selector.dart';
@@ -16,6 +17,7 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   final HomeViewModel viewModel = HomeViewModel();
+  final NotificationService notifications = NotificationService();
 
   final TextEditingController searchController = TextEditingController();
 
@@ -74,6 +76,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
 
     _loadGames();
+    _startNotifications();
+  }
+
+  void _startNotifications() {
+    notifications.initialize().ignore();
+    notifications.watchAndNotify().listen(
+      (list) {
+        if (!mounted || list.isEmpty) return;
+        // In-app banner for the newest item is handled by system
+        // notification; also show a snackbar when a genuinely new
+        // item arrives while Home is visible. We track via service.
+      },
+      onError: (_) {},
+    );
   }
 
   Animation<Offset> _slide(Offset begin, Curve curve) {
@@ -83,8 +99,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     ).animate(CurvedAnimation(parent: _homeAnimationController, curve: curve));
   }
 
-  Future<void> _loadGames() async {
-    await viewModel.loadGames();
+  Future<void> _loadGames({bool forceRefresh = false}) async {
+    await viewModel.loadGames(forceRefresh: forceRefresh);
 
     if (mounted &&
         _homeAnimationController.status != AnimationStatus.completed) {
@@ -122,6 +138,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     searchFocusNode.dispose();
     _homeAnimationController.dispose();
     viewModel.dispose();
+    notifications.dispose();
 
     super.dispose();
   }
@@ -135,84 +152,90 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           const HomeBackground(),
 
           SafeArea(
-            child: RefreshIndicator(
-              onRefresh: _loadGames,
-              color: const Color(0xFF64B5F6),
-              backgroundColor: const Color(0xFF182236),
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
-                child: AnimatedBuilder(
-                  animation: viewModel,
-                  builder: (context, _) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SlideTransition(
-                          position: _headerSlide,
-                          child: FadeTransition(
-                            opacity: _headerFade,
-                            child: const HomeHeader(),
+            child: AnimatedBuilder(
+              animation: viewModel,
+              builder: (context, _) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SlideTransition(
+                            position: _headerSlide,
+                            child: FadeTransition(
+                              opacity: _headerFade,
+                              child: HomeHeader(
+                                notificationService: notifications,
+                              ),
+                            ),
                           ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        FadeTransition(
-                          opacity: _searchFade,
-                          child: ScaleTransition(
-                            scale: _searchScale,
-                            child: GameSearchBar(
-                              controller: searchController,
-                              focusNode: searchFocusNode,
-                              onSubmitted: _submitSearch,
-                              onClear: _clearSearch,
+                          const SizedBox(height: 20),
+                          FadeTransition(
+                            opacity: _searchFade,
+                            child: ScaleTransition(
+                              scale: _searchScale,
+                              child: GameSearchBar(
+                                controller: searchController,
+                                focusNode: searchFocusNode,
+                                onSubmitted: _submitSearch,
+                                onClear: _clearSearch,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          SlideTransition(
+                            position: _categorySlide,
+                            child: FadeTransition(
+                              opacity: _categoryFade,
+                              child: CategorySelector(
+                                categories: viewModel.categories,
+                                selectedCategory: viewModel.selectedCategory,
+                                onChanged: _selectCategory,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: () => _loadGames(forceRefresh: true),
+                        color: const Color(0xFF64B5F6),
+                        backgroundColor: const Color(0xFF182236),
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: ClampingScrollPhysics(),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 500),
+                            child: HomeContent(
+                              key: ValueKey(
+                                '${viewModel.selectedCategory}_'
+                                '${viewModel.submittedSearchQuery}',
+                              ),
+                              games: viewModel.filteredGames,
+                              mostDownloadedGames:
+                                  viewModel.filteredMostDownloadedGames,
+                              isLoading: viewModel.isLoading,
+                              hasError: viewModel.hasError,
+                              errorMessage: viewModel.errorMessage,
+                              searchQuery: viewModel.submittedSearchQuery,
+                              onRetry: () => _loadGames(forceRefresh: true),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 28),
-
-                        SlideTransition(
-                          position: _categorySlide,
-                          child: FadeTransition(
-                            opacity: _categoryFade,
-                            child: CategorySelector(
-                              categories: viewModel.categories,
-                              selectedCategory: viewModel.selectedCategory,
-                              onChanged: _selectCategory,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 500),
-                          child: HomeContent(
-                            key: ValueKey(
-                              '${viewModel.selectedCategory}_'
-                              '${viewModel.submittedSearchQuery}',
-                            ),
-                            games: viewModel.filteredGames,
-                            mostDownloadedGames:
-                                viewModel.filteredMostDownloadedGames,
-                            isLoading: viewModel.isLoading,
-                            hasError: viewModel.hasError,
-                            errorMessage: viewModel.errorMessage,
-                            searchQuery: viewModel.submittedSearchQuery,
-                            onRetry: _loadGames,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],

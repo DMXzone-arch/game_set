@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+
+
 class AboutView extends StatelessWidget {
   const AboutView({super.key});
 
@@ -15,7 +17,7 @@ class AboutView extends StatelessWidget {
 
           SafeArea(
             child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
+              physics: const ClampingScrollPhysics(),
               slivers: [
                 SliverAppBar(
                   backgroundColor: Colors.transparent,

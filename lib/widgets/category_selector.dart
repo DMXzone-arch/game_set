@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class CategorySelector extends StatelessWidget {
@@ -16,45 +14,39 @@ class CategorySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: categories.map((category) {
-                final bool selected = category == selectedCategory;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(category),
-                    selected: selected,
-                    showCheckmark: false,
-                    onSelected: (_) => onChanged(category),
-                    selectedColor: const Color(0xFF2196F3),
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    side: BorderSide(
-                      color: selected
-                          ? const Color(0xFF2196F3)
-                          : Colors.white.withValues(alpha: 0.16),
-                    ),
-                    labelStyle: TextStyle(
-                      color: selected ? Colors.white : Colors.white70,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF182236),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: categories.map((category) {
+            final bool selected = category == selectedCategory;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(category),
+                selected: selected,
+                showCheckmark: false,
+                onSelected: (_) => onChanged(category),
+                selectedColor: const Color(0xFF2196F3),
+                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                side: BorderSide(
+                  color: selected
+                      ? const Color(0xFF2196F3)
+                      : Colors.white.withValues(alpha: 0.16),
+                ),
+                labelStyle: TextStyle(
+                  color: selected ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );

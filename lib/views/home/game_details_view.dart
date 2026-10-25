@@ -13,6 +13,7 @@ import '../../widgets/game_details/game_description.dart';
 import '../../widgets/game_details/game_details_header.dart';
 import '../../widgets/game_details/game_info_card.dart';
 import '../../widgets/game_details/screenshot_viewer.dart';
+import '../../widgets/game_feedback_section.dart';
 import 'login_view.dart';
 
 class GameDetailsView extends StatefulWidget {
@@ -26,7 +27,13 @@ class GameDetailsView extends StatefulWidget {
 
 class _GameDetailsViewState extends State<GameDetailsView>
     with SingleTickerProviderStateMixin {
+  final GameRepository _gameRepository = GameRepository();
   int? _downloadCount;
+  Game? _loadedGame;
+  bool _loadingDetails = true;
+  bool _detailsFailed = false;
+
+  Game get _game => _loadedGame ?? widget.game;
 
   late final AnimationController _animationController;
 
@@ -42,7 +49,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 350),
     );
 
     _headerAnimation = CurvedAnimation(
@@ -70,8 +77,46 @@ class _GameDetailsViewState extends State<GameDetailsView>
       curve: const Interval(0.50, 1.0, curve: Curves.easeOutCubic),
     );
 
-    _animationController.forward();
+    unawaited(_loadGameDetails());
     _loadDownloadCount();
+  }
+
+  Future<void> _loadGameDetails() async {
+    if (mounted && _loadedGame == null) {
+      setState(() {
+        _loadingDetails = true;
+        _detailsFailed = false;
+      });
+    }
+    try {
+      final Game? cachedGame = await _gameRepository.fetchCachedGameDetails(
+        widget.game.id,
+      );
+      if (cachedGame != null && mounted) {
+        setState(() {
+          _loadedGame = cachedGame;
+          _loadingDetails = false;
+          _detailsFailed = false;
+        });
+        _animationController.forward();
+      }
+
+      final Game? game = await _gameRepository.fetchGameDetails(widget.game.id);
+      if (game == null) throw StateError('This game is no longer available.');
+      if (!mounted) return;
+      setState(() {
+        _loadedGame = game;
+        _loadingDetails = false;
+      });
+      _animationController.forward();
+    } catch (_) {
+      if (!mounted) return;
+      if (_loadedGame != null) return;
+      setState(() {
+        _loadingDetails = false;
+        _detailsFailed = true;
+      });
+    }
   }
 
   @override
@@ -81,14 +126,14 @@ class _GameDetailsViewState extends State<GameDetailsView>
   }
 
   Future<void> _downloadGame(BuildContext context) async {
-    final Uri? url = Uri.tryParse(widget.game.downloadLink);
+    final Uri? url = Uri.tryParse(_game.downloadLink);
 
     if (url == null || (url.scheme != 'http' && url.scheme != 'https')) {
       _showMessage(context, 'This game does not have a valid download link.');
       return;
     }
 
-    if (widget.game.id.isNotEmpty) {
+    if (_game.id.isNotEmpty) {
       unawaited(_recordDownloadTap());
     }
 
@@ -126,7 +171,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
   Future<void> _recordDownloadTap() async {
     try {
-      await GameRepository().incrementDownloadCount(widget.game.id);
+      await GameRepository().incrementDownloadCount(_game.id);
       await _loadDownloadCount();
     } catch (_) {}
   }
@@ -148,6 +193,10 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingDetails || _detailsFailed) {
+      return _buildDetailsLoadState(context);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF071426),
       body: Stack(
@@ -156,7 +205,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
           SafeArea(
             child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
+              physics: const ClampingScrollPhysics(),
               slivers: [
                 _buildAppBar(context),
 
@@ -166,7 +215,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
                     delegate: SliverChildListDelegate([
                       _AnimatedSection(
                         animation: _headerAnimation,
-                        child: GameDetailsHeader(game: widget.game),
+                        child: GameDetailsHeader(game: _game),
                       ),
 
                       const SizedBox(height: 30),
@@ -174,7 +223,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
                       _AnimatedSection(
                         animation: _infoAnimation,
                         child: GameInfoCard(
-                          game: widget.game,
+                          game: _game,
                           downloadCount: _downloadCount,
                         ),
                       ),
@@ -183,7 +232,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
                       _AnimatedSection(
                         animation: _descriptionAnimation,
-                        child: GameDescription(game: widget.game),
+                        child: GameDescription(game: _game),
                       ),
 
                       const SizedBox(height: 30),
@@ -207,6 +256,10 @@ class _GameDetailsViewState extends State<GameDetailsView>
 
                       const SizedBox(height: 30),
 
+                      GameFeedbackSection(gameId: _game.id),
+
+                      const SizedBox(height: 30),
+
                       _AnimatedSection(
                         animation: _downloadAnimation,
                         child: Column(
@@ -223,6 +276,56 @@ class _GameDetailsViewState extends State<GameDetailsView>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsLoadState(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF071426),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        title: Text(widget.game.name),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: _detailsFailed
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      color: Colors.white60,
+                      size: 40,
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Could not load game details. Check your connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: _loadGameDetails,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
+                )
+              : const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Color(0xFF64B5F6)),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading game details…',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -246,7 +349,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
         ),
       ),
       title: Text(
-        widget.game.name,
+        _game.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
@@ -256,7 +359,7 @@ class _GameDetailsViewState extends State<GameDetailsView>
         ),
       ),
       actions: [
-        _WishlistButton(game: widget.game),
+        _WishlistButton(game: _game),
         const SizedBox(width: 8),
       ],
     );
@@ -288,14 +391,30 @@ class _GameDetailsViewState extends State<GameDetailsView>
   }
 
   Widget _buildScreenshots() {
+    final screenshots = <({String path, String tag})>[
+      (path: _game.screenshot1, tag: 'screenshot-1-${_game.id}'),
+      (path: _game.screenshot2, tag: 'screenshot-2-${_game.id}'),
+    ].where((screenshot) => screenshot.path.trim().isNotEmpty).toList();
+    final galleryPaths = screenshots
+        .map((screenshot) => screenshot.path)
+        .toList();
+    final galleryHeroTags = screenshots
+        .map((screenshot) => screenshot.tag)
+        .toList();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _ScreenshotContainer(
             child: ScreenshotViewer(
-              imagePath: widget.game.screenshot1,
-              heroTag: 'screenshot-1-${widget.game.id}',
+              imagePath: _game.screenshot1,
+              heroTag: 'screenshot-1-${_game.id}',
+              galleryPaths: galleryPaths,
+              galleryHeroTags: galleryHeroTags,
+              initialPage: galleryHeroTags.indexOf(
+                'screenshot-1-${_game.id}',
+              ),
             ),
           ),
         ),
@@ -305,8 +424,13 @@ class _GameDetailsViewState extends State<GameDetailsView>
         Expanded(
           child: _ScreenshotContainer(
             child: ScreenshotViewer(
-              imagePath: widget.game.screenshot2,
-              heroTag: 'screenshot-2-${widget.game.id}',
+              imagePath: _game.screenshot2,
+              heroTag: 'screenshot-2-${_game.id}',
+              galleryPaths: galleryPaths,
+              galleryHeroTags: galleryHeroTags,
+              initialPage: galleryHeroTags.indexOf(
+                'screenshot-2-${_game.id}',
+              ),
             ),
           ),
         ),

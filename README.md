@@ -25,12 +25,8 @@ Deploy `firestore.rules` before using the app:
 firebase deploy --only firestore:rules
 ```
 
-The admin interface is not part of this consumer app. Admin accounts and
-management screens will live in the separate admin app.
-
-The admin editor accepts direct, publicly accessible image URLs, so Firebase
-Storage and a billing account are not required. The catalog shows published
-Firestore records only. See
+The admin interface is maintained in a separate app. The catalog shows
+published Firestore records only. See
 [FIRESTORE_SCHEMA.md](FIRESTORE_SCHEMA.md) for collection fields.
 
 ## Run on Chrome

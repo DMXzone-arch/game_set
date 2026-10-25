@@ -5,10 +5,11 @@ import '../models/game.dart';
 import '../services/game_repository.dart';
 
 class GameViewModel extends ChangeNotifier {
-  GameViewModel({GameRepository? repository})
+  GameViewModel({GameRepository? repository, this._loadPopularGames = true})
     : _repository = repository ?? GameRepository();
 
   final GameRepository _repository;
+  final bool _loadPopularGames;
 
   bool _isLoading = false;
   bool _hasLoaded = false;
@@ -20,6 +21,12 @@ class GameViewModel extends ChangeNotifier {
 
   List<String> _categories = ['All'];
   int _loadGeneration = 0;
+
+  @override
+  void dispose() {
+    _loadGeneration++;
+    super.dispose();
+  }
 
   bool get isLoading => _isLoading && !_hasLoaded;
 
@@ -33,7 +40,7 @@ class GameViewModel extends ChangeNotifier {
 
   List<String> get categories => List.unmodifiable(_categories);
 
-  Future<void> loadGames() async {
+  Future<void> loadGames({bool forceRefresh = false}) async {
     final int generation = ++_loadGeneration;
     _isLoading = true;
     _hasError = false;
@@ -43,8 +50,8 @@ class GameViewModel extends ChangeNotifier {
 
     try {
       final List<Object> catalogResults = await Future.wait<Object>([
-        _repository.fetchGames(),
-        _repository.fetchCategories(),
+        _repository.fetchGames(forceRefresh: forceRefresh),
+        _repository.fetchCategories(forceRefresh: forceRefresh),
       ]);
       if (generation != _loadGeneration) return;
 
@@ -62,7 +69,9 @@ class GameViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
 
-      await _loadMostDownloadedGames(games, generation);
+      if (_loadPopularGames) {
+        await _loadMostDownloadedGames(games, generation);
+      }
     } catch (error) {
       if (generation == _loadGeneration) {
         if (!_hasLoaded) {

@@ -14,5 +14,13 @@ service firebase.storage {
           || (request.resource.size < 10 * 1024 * 1024
             && request.resource.contentType.matches('image/.*')));
     }
+
+    match /app_updates/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && (request.resource == null
+          || (request.resource.size < 200 * 1024 * 1024
+            && request.resource.contentType == 'application/vnd.android.package-archive'));
+    }
   }
 }

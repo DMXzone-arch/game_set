@@ -21,6 +21,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     defaultConfig {
@@ -36,27 +41,31 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystoreProperties.containsKey("storeFile")) {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
+            require(keystorePropertiesFile.exists()) {
+                "Release signing requires android/key.properties."
             }
+            listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+                .forEach { property ->
+                    require(!keystoreProperties.getProperty(property).isNullOrBlank()) {
+                        "Release signing property '$property' is missing from android/key.properties."
+                    }
+                }
+            val releaseStoreFile = file(keystoreProperties.getProperty("storeFile"))
+            require(releaseStoreFile.isFile) {
+                "Release keystore was not found at ${releaseStoreFile.path}."
+            }
+            storeFile = releaseStoreFile
+            storePassword = keystoreProperties.getProperty("storePassword")
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
-        }
-    }
-
-    packaging {
-        jniLibs {
-            excludes += setOf("lib/armeabi-v7a/**", "lib/x86_64/**")
         }
     }
 }
@@ -65,6 +74,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 flutter {

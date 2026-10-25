@@ -1,10 +1,6 @@
-import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../models/game.dart';
-import '../../services/wishlist_service.dart';
+import '../../viewmodels/wishlist_viewmodel.dart';
 import '../../widgets/game_card.dart';
 import 'login_view.dart';
 
@@ -16,157 +12,118 @@ class WishlistView extends StatefulWidget {
 }
 
 class _WishlistViewState extends State<WishlistView> {
-  final WishlistService _wishlist = WishlistService();
-  StreamSubscription<User?>? _authSubscription;
-  Future<List<Game>> _games = Future<List<Game>>.value(const []);
-  String? _activeUid;
-
-  @override
-  void initState() {
-    super.initState();
-    _activeUid = _currentUid;
-    _games = _wishlist.fetchGames();
-    // Reload when the account changes so one user's wishlist is never shown
-    // to another (or to a signed-out visitor).
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((
-      User? user,
-    ) {
-      final String? nextUid = user != null && !user.isAnonymous
-          ? user.uid
-          : null;
-      if (nextUid == _activeUid) return;
-      if (!mounted) return;
-      setState(() {
-        _activeUid = nextUid;
-        _games = _wishlist.fetchGames();
-      });
-    });
-  }
+  final WishlistViewModel _viewModel = WishlistViewModel();
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
+    _viewModel.dispose();
     super.dispose();
-  }
-
-  String? get _currentUid {
-    final User? user = FirebaseAuth.instance.currentUser;
-    return user != null && !user.isAnonymous ? user.uid : null;
-  }
-
-  void _reload() {
-    if (mounted) {
-      setState(() {
-        _activeUid = _currentUid;
-        _games = _wishlist.fetchGames();
-      });
-    }
   }
 
   Future<void> _openLogin() async {
     await Navigator.of(
       context,
     ).push<void>(MaterialPageRoute<void>(builder: (_) => const LoginView()));
-    _reload();
+    await _viewModel.loadGames();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool hasAccount = _currentUid != null;
     return Scaffold(
       backgroundColor: const Color(0xFF071426),
       body: SafeArea(
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          slivers: [
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 26, 20, 18),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Wishlist',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'Keep the games you want to play close.',
-                      style: TextStyle(color: Colors.white60, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (!hasAccount)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _AccountRequired(onLogin: _openLogin),
-              )
-            else
-              FutureBuilder<List<Game>>(
-                future: _games,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _WishlistMessage(
-                        icon: Icons.cloud_off_rounded,
-                        title: 'Could not load your wishlist',
-                        detail: 'Check your connection and try again.',
-                        action: TextButton(
-                          onPressed: _reload,
-                          child: const Text('Try again'),
-                        ),
-                      ),
-                    );
-                  }
-                  if (!snapshot.hasData) {
-                    return const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  final List<Game> games = snapshot.data!;
-                  if (games.isEmpty) {
-                    return const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _WishlistMessage(
-                        icon: Icons.favorite_border_rounded,
-                        title: 'Your wishlist is empty',
-                        detail:
-                            'Open a game and tap the heart to save it here.',
-                      ),
-                    );
-                  }
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
-                    sliver: SliverGrid.builder(
-                      itemCount: games.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: 0.77,
-                          ),
-                      itemBuilder: (context, index) => GameCard(
-                        game: games[index],
-                        onDetailsClosed: _reload,
-                      ),
-                    ),
-                  );
-                },
-              ),
-          ],
+        child: AnimatedBuilder(
+          animation: _viewModel,
+          builder: (context, _) => _buildContent(context),
         ),
       ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final Widget content;
+    if (!_viewModel.hasAccount) {
+      content = SliverFillRemaining(
+        hasScrollBody: false,
+        child: _AccountRequired(onLogin: _openLogin),
+      );
+    } else if (_viewModel.errorMessage != null) {
+      content = SliverFillRemaining(
+        hasScrollBody: false,
+        child: _WishlistMessage(
+          icon: Icons.cloud_off_rounded,
+          title: 'Could not load your wishlist',
+          detail: 'Check your connection and try again.',
+          action: TextButton(
+            onPressed: _viewModel.loadGames,
+            child: const Text('Try again'),
+          ),
+        ),
+      );
+    } else if (_viewModel.isLoading) {
+      content = const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else if (_viewModel.games.isEmpty) {
+      content = const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _WishlistMessage(
+          icon: Icons.favorite_border_rounded,
+          title: 'Your wishlist is empty',
+          detail: 'Open a game and tap the heart to save it here.',
+        ),
+      );
+    } else {
+      final games = _viewModel.games;
+      content = SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
+        sliver: SliverGrid.builder(
+          itemCount: games.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 14,
+            childAspectRatio: 0.77,
+          ),
+          itemBuilder: (context, index) => GameCard(
+            game: games[index],
+            onDetailsClosed: _viewModel.loadGames,
+          ),
+        ),
+      );
+    }
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
+      slivers: [
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(20, 26, 20, 18),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Wishlist',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Keep the games you want to play close.',
+                  style: TextStyle(color: Colors.white60, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+        content,
+      ],
     );
   }
 }
